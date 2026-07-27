@@ -7,9 +7,11 @@ export interface ZVecPluginApi {
   app: App;
   settings: HybridSearchSettings;
   indexStatus: IndexStatus;
-  engine: HybridSearchEngine;
-  indexer: VaultIndexer;
+  engine: HybridSearchEngine | null;
+  indexer: VaultIndexer | null;
   saveSettings(): Promise<void>;
+  ensureRuntimeReady(): Promise<void>;
+  cancelIndexing(): void;
   restartRuntimeAndReindex(): Promise<void>;
   runSafely(
     context: string,

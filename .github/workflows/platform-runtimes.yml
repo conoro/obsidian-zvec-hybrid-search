@@ -1,0 +1,51 @@
+name: Platform runtimes
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS ARM64
+            runner: macos-14
+            target: darwin-arm64
+          - name: Windows x64
+            runner: windows-2025
+            target: win32-x64
+          - name: Linux x64
+            runner: ubuntu-24.04
+            target: linux-x64
+          - name: Linux ARM64
+            runner: ubuntu-24.04-arm
+            target: linux-arm64
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install build dependencies
+        run: npm ci
+      - name: Build and smoke-test native runtime
+        run: npm run package:runtime -- --target "${{ matrix.target }}"
+      - name: Upload native runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ matrix.target }}
+          path: dist/runtime/*
+          if-no-files-found: error
+          retention-days: 7

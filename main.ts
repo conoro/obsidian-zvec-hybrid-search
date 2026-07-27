@@ -11,8 +11,10 @@ import { VaultIndexer } from './src/indexing/vault-indexer';
 import type { ZVecPluginApi } from './src/plugin-api';
 import {
   errorMessage,
+  PluginRuntimeError,
   withTimeout,
 } from './src/runtime/safety';
+import { RuntimeManager } from './src/runtime/runtime-manager';
 import { LocalEmbeddingService } from './src/search/embeddings';
 import { HybridSearchEngine } from './src/search/engine';
 import { ZVecStore } from './src/search/zvec-store';
@@ -42,17 +44,18 @@ export default class ZVecHybridSearchPlugin
   implements ZVecPluginApi {
   override settings: HybridSearchSettings = { ...DEFAULT_SETTINGS };
   indexStatus: IndexStatus = { ...INITIAL_STATUS };
-  engine!: HybridSearchEngine;
-  indexer!: VaultIndexer;
+  engine: HybridSearchEngine | null = null;
+  indexer: VaultIndexer | null = null;
 
   private store: ZVecStore | null = null;
   private embeddings: LocalEmbeddingService | null = null;
+  private runtimeManager: RuntimeManager | null = null;
+  private runtimePromise: Promise<void> | null = null;
   private restartPromise: Promise<void> | null = null;
   private isUnloading = false;
 
   override async onload(): Promise<void> {
     await this.loadSettings();
-    await this.createRuntime();
 
     this.registerView(
       VIEW_TYPE_ZVEC_SEARCH,
@@ -85,7 +88,7 @@ export default class ZVecHybridSearchPlugin
       name: 'Incrementally reindex notes',
       callback: () => void this.runSafely(
         'Incremental reindex',
-        () => this.indexer.run(false),
+        () => this.withIndexer((indexer) => indexer.run(false)),
       ),
     });
     this.addCommand({
@@ -94,14 +97,27 @@ export default class ZVecHybridSearchPlugin
       callback: () => void this.restartRuntimeAndReindex(),
     });
     this.addSettingTab(new ZVecSearchSettingTab(this));
+    void this.ensureRuntimeReady().catch((error) => {
+      if (!this.isUnloading) {
+        console.error('ZVec Hybrid Search runtime startup failed', error);
+      }
+    });
 
     this.app.workspace.onLayoutReady(() => {
       const scheduleFile = (file: TAbstractFile): void => {
         if (!this.settings.autoIndex) return;
         if (file instanceof TFile) {
-          this.indexer.schedulePaths([file.path]);
+          void this.withIndexer(async (indexer) => {
+            indexer.schedulePaths([file.path]);
+          }).catch((error) => {
+            console.warn('ZVec file update could not be scheduled', error);
+          });
         } else {
-          this.indexer.scheduleReconciliation();
+          void this.withIndexer(async (indexer) => {
+            indexer.scheduleReconciliation();
+          }).catch((error) => {
+            console.warn('ZVec folder update could not be scheduled', error);
+          });
         }
       };
       this.registerEvent(this.app.vault.on('create', scheduleFile));
@@ -110,13 +126,21 @@ export default class ZVecHybridSearchPlugin
       this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
         if (!this.settings.autoIndex) return;
         if (file instanceof TFile) {
-          this.indexer.schedulePaths([oldPath, file.path]);
+          void this.withIndexer(async (indexer) => {
+            indexer.schedulePaths([oldPath, file.path]);
+          }).catch((error) => {
+            console.warn('ZVec rename could not be scheduled', error);
+          });
         } else {
-          this.indexer.scheduleReconciliation();
+          void this.withIndexer(async (indexer) => {
+            indexer.scheduleReconciliation();
+          }).catch((error) => {
+            console.warn('ZVec folder rename could not be scheduled', error);
+          });
         }
       }));
       if (this.settings.autoIndex) {
-        void this.indexer.run(false).catch((error) => {
+        void this.withIndexer((indexer) => indexer.run(false)).catch((error) => {
           console.error('ZVec Hybrid Search indexing failed', error);
         });
       }
@@ -125,6 +149,7 @@ export default class ZVecHybridSearchPlugin
 
   override async onunload(): Promise<void> {
     this.isUnloading = true;
+    this.runtimeManager?.cancel();
     try {
       await withTimeout(
         this.indexer?.stop() ?? Promise.resolve(),
@@ -158,13 +183,49 @@ export default class ZVecHybridSearchPlugin
       'Reset and rebuild',
       async () => {
         await this.indexer?.stop();
+        this.indexer = null;
+        this.engine = null;
         await this.createRuntime();
-        await this.indexer.resetAndReindex();
+        const indexer = this.requireIndexer();
+        await indexer.resetAndReindex();
       },
     ).finally(() => {
       this.restartPromise = null;
     });
     return this.restartPromise;
+  }
+
+  async ensureRuntimeReady(): Promise<void> {
+    if (this.engine && this.indexer) return;
+    if (this.isUnloading) {
+      throw new PluginRuntimeError(
+        'PLUGIN_STOPPED',
+        'ZVec Hybrid Search is stopping.',
+      );
+    }
+    if (this.runtimePromise) return this.runtimePromise;
+    this.runtimePromise = this.createRuntime()
+      .catch((error) => {
+        if (!this.isUnloading) {
+          this.updateStatus({
+            phase: 'error',
+            message: 'Search runtime is unavailable.',
+            error: errorMessage(error),
+            completed: 0,
+            total: 0,
+          });
+        }
+        throw error;
+      })
+      .finally(() => {
+        this.runtimePromise = null;
+      });
+    return this.runtimePromise;
+  }
+
+  cancelIndexing(): void {
+    this.runtimeManager?.cancel();
+    this.indexer?.cancel();
   }
 
   async runSafely(
@@ -210,34 +271,61 @@ export default class ZVecHybridSearchPlugin
       pluginDirectory,
       'search-data',
     );
-    const runtimeDirectory = join(adapter.getBasePath(), pluginDirectory);
-    this.store = new ZVecStore(
-      join(dataDirectory, 'collection'),
-      runtimeDirectory,
+    this.runtimeManager ??= new RuntimeManager(
+      dataDirectory,
+      this.manifest.version,
+      (message, completed = 0, total = 0) => this.updateStatus({
+        phase: 'downloading-runtime',
+        message,
+        completed,
+        total,
+      }),
     );
-    this.embeddings = new LocalEmbeddingService(
+    const runtime = await this.runtimeManager.ensure();
+    if (this.isUnloading) {
+      throw new PluginRuntimeError(
+        'PLUGIN_STOPPED',
+        'ZVec Hybrid Search stopped during runtime startup.',
+      );
+    }
+    const previousIndexer = this.indexer;
+    this.indexer = null;
+    this.engine = null;
+    if (previousIndexer) await previousIndexer.stop();
+    const store = new ZVecStore(
+      join(dataDirectory, 'collection'),
+      runtime.rootDirectory,
+      runtime.nodeExecutable,
+    );
+    const embeddings = new LocalEmbeddingService(
       join(dataDirectory, 'models'),
       this.settings.embeddingBackend,
       this.settings.embeddingModel,
       this.settings.embeddingDtype,
       (status) => this.updateStatus(status),
-      runtimeDirectory,
+      runtime.rootDirectory,
+      undefined,
+      runtime.nodeExecutable,
     );
-    this.indexer = new VaultIndexer(
+    const indexer = new VaultIndexer(
       this.app,
-      this.store,
-      this.embeddings,
+      store,
+      embeddings,
       () => this.settings,
       join(dataDirectory, 'index-state.json'),
       (status) => this.updateStatus(status),
     );
-    this.engine = new HybridSearchEngine(
-      this.store,
-      this.embeddings,
+    const engine = new HybridSearchEngine(
+      store,
+      embeddings,
       () => this.settings,
     );
+    this.store = store;
+    this.embeddings = embeddings;
+    this.indexer = indexer;
+    this.engine = engine;
     try {
-      await this.indexer.initialize();
+      await indexer.initialize();
     } catch (error) {
       this.updateStatus({
         phase: 'error',
@@ -251,6 +339,23 @@ export default class ZVecHybridSearchPlugin
         error,
       );
     }
+  }
+
+  private async withIndexer(
+    action: (indexer: VaultIndexer) => Promise<void>,
+  ): Promise<void> {
+    await this.ensureRuntimeReady();
+    const indexer = this.requireIndexer();
+    await action(indexer);
+  }
+
+  private requireIndexer(): VaultIndexer {
+    if (this.indexer) return this.indexer;
+    throw new PluginRuntimeError(
+      'RUNTIME_UNAVAILABLE',
+      'The search runtime is unavailable.',
+      { retryable: true },
+    );
   }
 
   private updateStatus(

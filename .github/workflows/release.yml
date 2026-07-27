@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  plugin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Validate release version
+        shell: bash
+        run: |
+          node -e "
+            const manifest = require('./manifest.json');
+            const pkg = require('./package.json');
+            const tag = process.env.GITHUB_REF_NAME;
+            if (manifest.version !== tag || pkg.version !== tag) {
+              throw new Error(
+                'Tag, manifest, and package versions must match exactly.'
+              );
+            }
+          "
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify plugin
+        run: npm run verify
+      - name: Stage Obsidian assets
+        shell: bash
+        run: |
+          mkdir -p dist/plugin
+          cp main.js manifest.json styles.css versions.json dist/plugin/
+          cd dist/plugin
+          zip "zvec-hybrid-search-${GITHUB_REF_NAME}.zip" \
+            main.js manifest.json styles.css
+      - name: Upload plugin assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin
+          path: dist/plugin/*
+          if-no-files-found: error
+          retention-days: 7
+
+  runtime:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS ARM64
+            runner: macos-14
+            target: darwin-arm64
+          - name: Windows x64
+            runner: windows-2025
+            target: win32-x64
+          - name: Linux x64
+            runner: ubuntu-24.04
+            target: linux-x64
+          - name: Linux ARM64
+            runner: ubuntu-24.04-arm
+            target: linux-arm64
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install build dependencies
+        run: npm ci
+      - name: Build and smoke-test native runtime
+        run: npm run package:runtime -- --target "${{ matrix.target }}"
+      - name: Upload native runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ matrix.target }}
+          path: dist/runtime/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [plugin, runtime]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Download validated assets
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Publish beta release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --prerelease \
+            --title "ZVec Hybrid Search $GITHUB_REF_NAME" \
+            --generate-notes \
+            release-assets/*

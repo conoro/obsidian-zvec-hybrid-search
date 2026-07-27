@@ -4,7 +4,6 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -12,6 +11,14 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  installNodeExecutable,
+  pruneUnusedPlatformPayloads,
+  runtimePackageJson,
+  runtimePlatformKey,
+  writeNodeLicense,
+  writeReadyMarker,
+} from './runtime-utils.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDir, '..');
@@ -47,14 +54,19 @@ for (const file of ['main.js', 'manifest.json', 'styles.css']) {
 }
 
 const projectPackage = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
-const runtimePackage = {
-  name: `${pluginId}-runtime`,
-  private: true,
-  dependencies: projectPackage.dependencies,
-  overrides: projectPackage.overrides,
-};
+const platformKey = runtimePlatformKey();
+const runtimeTarget = join(
+  target,
+  'search-data',
+  'runtime',
+  projectPackage.version,
+  platformKey,
+);
+rmSync(runtimeTarget, { recursive: true, force: true });
+mkdirSync(runtimeTarget, { recursive: true });
+const runtimePackage = runtimePackageJson(projectPackage);
 writeFileSync(
-  join(target, 'package.json'),
+  join(runtimeTarget, 'package.json'),
   `${JSON.stringify(runtimePackage, null, 2)}\n`,
   'utf8',
 );
@@ -63,53 +75,28 @@ console.log('Installing native ZVec and local embedding runtime...');
 const install = spawnSync(
   process.platform === 'win32' ? 'npm.cmd' : 'npm',
   ['install', '--omit=dev', '--no-audit', '--no-fund'],
-  { cwd: target, stdio: 'inherit' },
+  { cwd: runtimeTarget, stdio: 'inherit' },
 );
 if (install.status !== 0) {
   process.exit(install.status ?? 1);
 }
 
-pruneUnusedPlatformPayloads(join(target, 'node_modules'));
+pruneUnusedPlatformPayloads(
+  join(runtimeTarget, 'node_modules'),
+  process.platform,
+  process.arch,
+);
+installNodeExecutable(runtimeTarget, platformKey);
+await writeNodeLicense(runtimeTarget);
+writeReadyMarker(
+  runtimeTarget,
+  projectPackage.version,
+  platformKey,
+);
+rmSync(join(target, 'node_modules'), { recursive: true, force: true });
+rmSync(join(target, 'package.json'), { force: true });
+rmSync(join(target, 'package-lock.json'), { force: true });
 
 console.log(`Installed ZVec Hybrid Search to ${target}`);
+console.log('The private Node runtime is included; no system Node is used by Obsidian.');
 console.log('Enable or reload it in Obsidian → Settings → Community plugins.');
-
-function pruneUnusedPlatformPayloads(nodeModules) {
-  // Transformers.js installs every ONNX platform plus the browser runtime.
-  // Obsidian uses Node's native backend, so keep only this machine's binary.
-  rmSync(join(nodeModules, 'onnxruntime-web'), { recursive: true, force: true });
-
-  const onnxPlatforms = join(nodeModules, 'onnxruntime-node', 'bin', 'napi-v6');
-  if (existsSync(onnxPlatforms)) {
-    for (const platform of readdirSync(onnxPlatforms)) {
-      const platformPath = join(onnxPlatforms, platform);
-      if (platform !== process.platform) {
-        rmSync(platformPath, { recursive: true, force: true });
-        continue;
-      }
-      for (const architecture of readdirSync(platformPath)) {
-        if (architecture !== process.arch) {
-          rmSync(join(platformPath, architecture), {
-            recursive: true,
-            force: true,
-          });
-        }
-      }
-    }
-  }
-
-  const imagePackages = join(nodeModules, '@img');
-  if (existsSync(imagePackages)) {
-    for (const packageName of readdirSync(imagePackages)) {
-      if (
-        packageName !== 'colour'
-        && !packageName.endsWith(`${process.platform}-${process.arch}`)
-      ) {
-        rmSync(join(imagePackages, packageName), {
-          recursive: true,
-          force: true,
-        });
-      }
-    }
-  }
-}

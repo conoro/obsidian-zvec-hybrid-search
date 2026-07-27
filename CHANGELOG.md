@@ -2,6 +2,36 @@
 
 All notable changes to ZVec Hybrid Search are documented here.
 
+## 0.2.0 — 2026-07-27
+
+First installable public beta.
+
+### Added
+
+- Self-contained private runtimes for macOS ARM64, Windows x64, Linux x64,
+  and Linux ARM64.
+- Automatic first-run runtime selection, download, SHA-256 verification,
+  traversal-safe extraction, atomic installation, and reuse.
+- Native release builds and smoke tests on all four target architectures.
+- A single plugin zip for straightforward manual installation.
+
+### Reliability
+
+- Runtime provisioning runs asynchronously and never blocks Obsidian startup.
+- Downloads have size, redirect, host, inactivity, and total-duration bounds.
+- Failed setup is contained inside the plugin and uses a retry cooldown.
+- Plugin unload and the visible Cancel action abort runtime provisioning.
+- ZVec and ONNX continue to run in separate private child processes, so native
+  faults remain outside Obsidian's renderer.
+- Obsidian no longer uses or searches for a system Node.js installation.
+
+### Network and storage
+
+- The first launch downloads the matching platform runtime from this GitHub
+  release. The archive is currently about 75–100 MB depending on platform.
+- The semantic model remains a separate one-time download from Hugging Face.
+- Runtime, model, index, and settings are stored inside the plugin directory.
+
 ## 0.1.1 — 2026-07-27
 
 ### Changed

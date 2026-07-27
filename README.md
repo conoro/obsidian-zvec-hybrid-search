@@ -5,9 +5,9 @@ ZVec BM25 full-text search with semantic similarity so results can match both
 the words you typed and the meaning behind them.
 
 > [!IMPORTANT]
-> Version 0.1.1 is an early developer preview. It is not yet available in the
-> Obsidian Community Plugin directory and is not currently compatible with
-> BRAT. The manual installation below requires Node.js 22 or newer.
+> Version 0.2.0 is a public beta. It is not yet listed in the Obsidian
+> Community Plugin directory. No Node.js, server, terminal command, container,
+> or Python installation is required.
 
 ## Why use it?
 
@@ -25,45 +25,36 @@ ZVec Hybrid Search provides:
 ## Current compatibility
 
 - Obsidian desktop 1.8.0 or newer.
-- Currently validated on macOS with Apple silicon.
-- Node.js 22 or newer and npm are required for this preview.
+- macOS with Apple silicon.
+- Windows x64.
+- Linux x64 or ARM64.
 - Mobile is not supported because ZVec uses native desktop libraries.
 
-Windows and Linux are targets for the Community Plugin release, but their
-packaged installers have not yet been validated.
-
-## Install the preview
+## Install the beta
 
 Back up your vault before installing any pre-release plugin.
 
-1. Install [Node.js 22 or newer](https://nodejs.org/).
-2. Open a terminal and run:
-
-   ```bash
-   git clone https://github.com/conoro/zvec-hybrid-search.git
-   cd zvec-hybrid-search
-   npm install
-   npm run verify
-   npm run install:local -- --vault "/path/to/your/Vault"
-   ```
-
-3. In Obsidian, open **Settings → Community plugins**.
-4. Enable **ZVec Hybrid Search**.
-5. Open it from the ribbon or run **Open hybrid search** from the command
+1. Download `zvec-hybrid-search-0.2.0.zip` from the
+   [0.2.0 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.0).
+2. Extract it into this folder inside your vault:
+   `.obsidian/plugins/zvec-hybrid-search/`
+3. Confirm that the folder contains `main.js`, `manifest.json`, and
+   `styles.css` directly, rather than inside another nested folder.
+4. Restart Obsidian.
+5. Open **Settings → Community plugins** and enable
+   **ZVec Hybrid Search**.
+6. Open it from the ribbon or run **Open hybrid search** from the command
    palette.
 
-The first semantic index downloads the selected MiniLM model and may take
-several minutes. Later launches use the cached model and update only changed
-notes.
+On first use, the plugin automatically downloads the matching private runtime
+from the same GitHub release and verifies its SHA-256 digest before installing
+it. This is roughly 75–100 MB depending on platform. The first semantic index
+then downloads the selected MiniLM model and may take several minutes. Later
+launches reuse both downloads and update only changed notes.
 
-To update this preview:
-
-```bash
-git pull
-npm install
-npm run verify
-npm run install:local -- --vault "/path/to/your/Vault"
-```
+To update, disable the plugin, replace `main.js`, `manifest.json`, and
+`styles.css` with the files from the newer release, restart Obsidian, and
+enable it again. Your index and cached model remain in place.
 
 ## Search
 
@@ -107,8 +98,10 @@ continuous polling, companion server, daemon, container, or Python service.
 - Note text, embeddings, index files, and settings remain on the local
   machine.
 - The plugin has no telemetry or analytics.
-- The only expected network access is the first download of the selected
-  MiniLM model from Hugging Face.
+- The first use downloads the platform runtime from this project's GitHub
+  release. GitHub's published SHA-256 digest is verified before extraction.
+- The first semantic index downloads the selected MiniLM model from Hugging
+  Face.
 - Search and indexing do not send vault content to an API.
 
 ZVec provides the local BM25 and vector database. MiniLM converts note text

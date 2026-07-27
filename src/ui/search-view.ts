@@ -81,6 +81,7 @@ export class HybridSearchView extends ItemView {
       : status.message);
     const isActive = [
       'loading',
+      'downloading-runtime',
       'scanning',
       'downloading-model',
       'embedding',
@@ -202,7 +203,7 @@ export class HybridSearchView extends ItemView {
     this.cancelButtonEl.hidden = true;
     this.cancelButtonEl.addEventListener(
       'click',
-      () => this.plugin.indexer.cancel(),
+      () => this.plugin.cancelIndexing(),
     );
 
     this.summaryEl = container.createDiv({ cls: 'zvec-search-summary' });
@@ -246,7 +247,10 @@ export class HybridSearchView extends ItemView {
     this.summaryEl.setText('');
 
     try {
-      const response = await this.plugin.engine.search({
+      await this.plugin.ensureRuntimeReady();
+      const engine = this.plugin.engine;
+      if (!engine) throw new Error('The private search runtime is unavailable.');
+      const response = await engine.search({
         query,
         mode: this.mode,
         matchMode: this.matchMode,

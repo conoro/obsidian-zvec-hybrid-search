@@ -1,13 +1,30 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { ZipArchive } from 'archiver';
 import { WorkerRpcClient } from '../src/runtime/worker-rpc';
 import {
   PluginRuntimeError,
   withTimeout,
 } from '../src/runtime/safety';
+import {
+  RuntimeManager,
+  extractZipSafely,
+  runtimeAssetName,
+  runtimeNodeRelativePath,
+  runtimePlatformKey,
+  safeZipEntryPath,
+} from '../src/runtime/runtime-manager';
 import {
   normalizeSettings,
   parseTopLevelFolders,
@@ -75,6 +92,115 @@ test('timeout wrapper rejects stalled async work without blocking the event loop
       && error.code === 'OPERATION_TIMEOUT',
   );
   assert.equal(timerFired, true);
+});
+
+test('runtime platform selection covers every published desktop target', () => {
+  assert.equal(runtimePlatformKey('darwin', 'arm64'), 'darwin-arm64');
+  assert.equal(runtimePlatformKey('win32', 'x64'), 'win32-x64');
+  assert.equal(runtimePlatformKey('linux', 'x64'), 'linux-x64');
+  assert.equal(runtimePlatformKey('linux', 'arm64'), 'linux-arm64');
+  assert.throws(
+    () => runtimePlatformKey('darwin', 'x64'),
+    (error: unknown) =>
+      error instanceof PluginRuntimeError
+      && error.code === 'RUNTIME_UNAVAILABLE',
+  );
+  assert.equal(
+    runtimeAssetName('0.2.0', 'linux-arm64'),
+    'zvec-runtime-0.2.0-linux-arm64.zip',
+  );
+});
+
+test('runtime archive paths reject traversal and absolute locations', () => {
+  assert.equal(safeZipEntryPath('node_modules/pkg/index.js'), 'node_modules/pkg/index.js');
+  assert.equal(safeZipEntryPath('bin\\node.exe'), 'bin/node.exe');
+  for (const path of [
+    '../outside',
+    'node_modules/../outside',
+    '/absolute/path',
+    'C:\\absolute\\path',
+    'bad\0name',
+  ]) {
+    assert.throws(() => safeZipEntryPath(path), /Unsafe runtime archive entry/u);
+  }
+});
+
+test('runtime archives extract through the bounded streaming installer', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-runtime-extract-'));
+  const archivePath = join(directory, 'runtime.zip');
+  const extracted = join(directory, 'extracted');
+  try {
+    await createTestZip(archivePath);
+    await mkdir(extracted, { recursive: true });
+    await extractZipSafely(
+      archivePath,
+      extracted,
+      new AbortController().signal,
+    );
+    assert.equal(
+      await readFile(join(extracted, 'bin', 'node'), 'utf8'),
+      'private runtime',
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('a validated local private runtime is reused without network access', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-runtime-manager-'));
+  const version = 'test-version';
+  const platformKey = runtimePlatformKey();
+  const runtimeRoot = join(
+    directory,
+    'runtime',
+    version,
+    platformKey,
+  );
+  const nodePath = join(
+    runtimeRoot,
+    ...runtimeNodeRelativePath(platformKey).split('/'),
+  );
+  try {
+    await mkdir(dirname(nodePath), { recursive: true });
+    await mkdir(
+      join(runtimeRoot, 'node_modules', '@zvec', 'zvec'),
+      { recursive: true },
+    );
+    await mkdir(
+      join(runtimeRoot, 'node_modules', '@huggingface', 'transformers'),
+      { recursive: true },
+    );
+    await copyFile(process.execPath, nodePath);
+    await writeFile(join(runtimeRoot, 'package.json'), '{}');
+    await writeFile(
+      join(runtimeRoot, 'node_modules', '@zvec', 'zvec', 'package.json'),
+      '{}',
+    );
+    await writeFile(
+      join(
+        runtimeRoot,
+        'node_modules',
+        '@huggingface',
+        'transformers',
+        'package.json',
+      ),
+      '{}',
+    );
+    await writeFile(
+      join(runtimeRoot, '.ready.json'),
+      JSON.stringify({
+        version,
+        platformKey,
+        source: 'local-development',
+      }),
+    );
+    const manager = new RuntimeManager(directory, version, () => undefined);
+    const runtime = await manager.ensure();
+    assert.equal(runtime.rootDirectory, runtimeRoot);
+    assert.equal(runtime.nodeExecutable, nodePath);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test('a hung native-style worker is terminated while the main loop stays responsive', async () => {
@@ -221,3 +347,19 @@ test('idle embedding workers stop and restart on demand', async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+function createTestZip(destination: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const output = createWriteStream(destination);
+    const archive = new ZipArchive({ zlib: { level: 1 } });
+    output.once('close', resolve);
+    output.once('error', reject);
+    archive.once('error', reject);
+    archive.pipe(output);
+    archive.append('private runtime', {
+      name: 'bin/node',
+      mode: 0o755,
+    });
+    void archive.finalize();
+  });
+}

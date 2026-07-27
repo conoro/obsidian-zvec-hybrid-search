@@ -33,9 +33,9 @@ Alternatively:
 OBSIDIAN_VAULT="/path/to/Vault" npm run install:local
 ```
 
-The installer copies the production plugin files, installs runtime
-dependencies inside the plugin directory, and removes native payloads for
-platforms other than the current machine.
+The installer copies the production plugin files and creates the same private,
+self-contained runtime layout used by releases. Obsidian does not use the
+developer's system Node installation after that.
 
 ## Commands
 
@@ -47,6 +47,7 @@ platforms other than the current machine.
 | `npm test` | Run unit, robustness, and ZVec integration tests |
 | `npm run verify` | Typecheck, test, and build |
 | `npm run install:local -- --vault …` | Install into a local vault |
+| `npm run package:runtime -- --target …` | Build and smoke-test this machine's native runtime |
 
 Generated `main.js` files are intentionally ignored in Git and belong in
 release assets, not source commits.
@@ -63,27 +64,25 @@ release assets, not source commits.
 See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the detailed design and
 publication roadmap.
 
-## Release status
+## Release architecture
 
-Obsidian's standard installer downloads only `main.js`, `manifest.json`, and
-`styles.css`. ZVec and ONNX Runtime include native binaries, while the current
-build deliberately keeps them outside `main.js` and executes them in isolated
-processes.
+Obsidian's installer downloads `main.js`, `manifest.json`, and `styles.css`.
+On first use, `RuntimeManager` selects the current platform and requests the
+corresponding archive from the release whose tag exactly matches the plugin
+version. It accepts only this repository's expected GitHub URL, reads GitHub's
+release-asset SHA-256 digest, streams the archive to disk, verifies the digest,
+extracts it into a staging directory, validates required files, and renames it
+into place.
 
-As a result, the current preview cannot yet be installed correctly through
-BRAT or the Community Plugin directory. A public production release needs:
+Each archive contains Node 22, ZVec, Transformers.js, and only the target
+platform's native ZVec and ONNX payloads. The runtime remains private to the
+plugin. ZVec and embeddings execute in separate subprocesses with bounded IPC,
+timeouts, shutdown, and crash containment.
 
-1. Self-contained, checksummed runtime payloads for supported desktop
-   platforms.
-2. A supported isolated runtime that does not require users to install
-   Node.js.
-3. Automated packaging and smoke tests for macOS ARM64, Windows x64, Linux
-   x64, and Linux ARM64.
-4. Release assets named exactly as required by Obsidian.
-5. Review against Obsidian's developer policies and plugin checklist.
-
-Until that packaging work is complete, releases should be marked as GitHub
-pre-releases and must not claim BRAT or Community Plugin compatibility.
+`.github/workflows/platform-runtimes.yml` builds and loads both native
+libraries on macOS ARM64, Windows x64, Linux x64, and Linux ARM64.
+`.github/workflows/release.yml` repeats those tests for a version tag and
+publishes only after every platform succeeds.
 
 ## Versioning
 

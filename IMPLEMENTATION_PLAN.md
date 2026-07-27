@@ -92,12 +92,16 @@ Hybrid signals rerank the resulting candidate set.
 ├── search-data/
 │   ├── collection/
 │   ├── index-state.json
-│   └── models/
-└── node_modules/              # local-development install only
+│   ├── models/
+│   └── runtime/
+│       └── <version>/<platform>/
+│           ├── bin/node       # node.exe on Windows
+│           └── node_modules/  # only the selected platform
 ```
 
-Vault Markdown is never sent to an API. The one expected network operation is
-the initial download of the selected embedding model from Hugging Face.
+Vault Markdown is never sent to an API. Expected network operations are the
+one-time private runtime download from the matching GitHub release and the
+initial embedding-model download from Hugging Face.
 
 ## Implementation phases
 
@@ -154,21 +158,18 @@ cycles without stale results.
 **Exit criteria:** enable the plugin in Obsidian and search without starting any
 external process.
 
-## Community Plugin release constraint
+## Community Plugin distribution
 
-ZVec's official Node SDK is in-process but ships a roughly 39 MB native
-platform binding. Obsidian's Community Plugin installer only downloads
-`main.js`, `manifest.json`, and `styles.css`, so normal `node_modules`
-deployment is not a publishable final format.
+ZVec and ONNX are distributed as four versioned runtime archives rather than
+being embedded into `main.js`. The small plugin bootstrap selects macOS ARM64,
+Windows x64, Linux x64, or Linux ARM64; obtains the exact archive from the
+matching GitHub release; verifies GitHub's SHA-256 digest; and installs it
+atomically. Every archive includes a private Node 22 executable, so end users
+do not install Node and no companion process must be started manually.
 
-Before submitting to the Community Plugin directory, the release build must
-produce a self-contained `main.js` that contains compressed, checksummed native
-payloads and extracts only the current platform's binding into the plugin data
-directory. The same treatment is required for ONNX Runtime, or the semantic
-backend must use a WebAssembly payload. Release CI must build and test macOS
-ARM64, Windows x64, Linux x64, and Linux ARM64 payloads. This packaging work is
-separate from the local-development installer but is part of the publication
-roadmap.
+Release CI builds each archive on its native GitHub-hosted runner and loads
+both ZVec and ONNX before publishing. The Community Plugin submission still
+requires the normal Obsidian review and a public beta period.
 
 ## Validation checklist
 
@@ -183,7 +184,7 @@ roadmap.
 - [ ] Vault contents and embeddings stay on the local machine.
 - [ ] Production build and tests pass.
 - [x] Local installer accepts any explicitly supplied vault.
-- [ ] Community release packaging has no undeclared runtime dependency.
+- [x] Community release packaging has no undeclared runtime dependency.
 - [x] Native database and embedding failures are isolated from the renderer.
 - [x] Missing/unavailable storage fails within a bounded plugin operation.
 - [x] Hung-process, malformed-settings, and clean-shutdown paths are tested.

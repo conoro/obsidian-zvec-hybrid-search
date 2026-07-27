@@ -32,6 +32,7 @@ export class LocalEmbeddingService {
     private readonly onProgress: ProgressCallback,
     private readonly runtimeDirectory = process.cwd(),
     private readonly idleShutdownMs = DEFAULT_IDLE_SHUTDOWN_MS,
+    private readonly nodeExecutable?: string,
   ) {}
 
   async embed(texts: string[]): Promise<Float32Array[]> {
@@ -136,6 +137,8 @@ export class LocalEmbeddingService {
           this.onProgress(message as Partial<IndexStatus>);
         }
       },
+      false,
+      this.nodeExecutable,
     );
     this.client = client;
     return client;

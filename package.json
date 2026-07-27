@@ -1,6 +1,6 @@
 {
   "name": "obsidian-zvec-hybrid-search",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Local hybrid search for Obsidian powered by ZVec BM25 and semantic embeddings.",
   "private": true,
   "type": "module",
@@ -17,6 +17,7 @@
     "build": "node esbuild.config.mjs production",
     "dev": "node esbuild.config.mjs",
     "install:local": "node scripts/install-local.mjs",
+    "package:runtime": "node scripts/package-runtime.mjs",
     "test": "node --import tsx --test test/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm test && npm run build"
@@ -26,12 +27,16 @@
     "@zvec/zvec": "0.6.0"
   },
   "devDependencies": {
+    "@types/archiver": "^8.0.0",
     "@types/node": "26.1.1",
+    "@types/yauzl": "^3.4.0",
+    "archiver": "^8.0.0",
     "builtin-modules": "5.0.0",
     "esbuild": "0.28.1",
     "obsidian": "1.13.1",
     "tsx": "4.20.6",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "yauzl": "^3.4.0"
   },
   "overrides": {
     "adm-zip": "0.6.0",

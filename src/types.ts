@@ -91,6 +91,7 @@ export interface PersistedIndexState {
 export type IndexPhase =
   | 'idle'
   | 'loading'
+  | 'downloading-runtime'
   | 'scanning'
   | 'downloading-model'
   | 'embedding'

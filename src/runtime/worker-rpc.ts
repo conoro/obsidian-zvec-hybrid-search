@@ -56,10 +56,11 @@ export class WorkerRpcClient {
     private readonly onFailure: WorkerFailureHandler,
     private readonly onProgress?: WorkerProgressHandler,
     forceChildProcess = false,
+    nodeExecutable?: string,
   ) {
     this.childProcess = forceChildProcess || Boolean(process.versions.electron);
     this.transport = this.childProcess
-      ? createElectronNodeChild(source, workerData)
+      ? createElectronNodeChild(source, workerData, nodeExecutable)
       : new Worker(source, { eval: true, workerData });
     this.transport.unref();
     this.transport.on('message', (message: unknown) => this.handleMessage(message));
@@ -269,9 +270,10 @@ export function serializeWorkerError(error: unknown): {
 function createElectronNodeChild(
   source: string,
   workerData: unknown,
+  nodeExecutable?: string,
 ): ChildProcess {
   const child = spawn(
-    resolveIsolatedNodeExecutable(),
+    resolveIsolatedNodeExecutable(nodeExecutable),
     ['-e', source],
     {
       env: {
@@ -296,16 +298,14 @@ function createElectronNodeChild(
   return child;
 }
 
-function resolveIsolatedNodeExecutable(): string {
-  const configured = process.env.OBSIDIAN_ZVEC_NODE;
-  if (configured && existsSync(configured)) return configured;
-  const candidates = process.platform === 'darwin'
-    ? ['/opt/homebrew/bin/node', '/usr/local/bin/node']
-    : process.platform === 'win32'
-      ? [
-        `${process.env.ProgramFiles ?? 'C:\\Program Files'}\\nodejs\\node.exe`,
-        `${process.env.LOCALAPPDATA ?? ''}\\Programs\\nodejs\\node.exe`,
-      ]
-      : ['/usr/local/bin/node', '/usr/bin/node'];
-  return candidates.find((candidate) => existsSync(candidate)) ?? 'node';
+function resolveIsolatedNodeExecutable(explicit?: string): string {
+  if (explicit && existsSync(explicit)) return explicit;
+  if (!process.versions.electron && existsSync(process.execPath)) {
+    return process.execPath;
+  }
+  throw new PluginRuntimeError(
+    'RUNTIME_UNAVAILABLE',
+    'The private Node runtime is unavailable. Retry runtime installation from the plugin settings.',
+    { retryable: true },
+  );
 }

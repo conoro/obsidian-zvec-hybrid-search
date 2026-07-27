@@ -54,6 +54,7 @@ export class ZVecStore {
   constructor(
     private readonly collectionPath: string,
     private readonly runtimeDirectory = process.cwd(),
+    private readonly nodeExecutable?: string,
   ) {}
 
   get stats(): ZVecStats {
@@ -185,6 +186,9 @@ export class ZVecStore {
         embeddingDimension: EMBEDDING_DIMENSION,
       },
       (error) => this.handleWorkerFailure(error),
+      undefined,
+      false,
+      this.nodeExecutable,
     );
     this.client = client;
     try {

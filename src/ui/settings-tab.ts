@@ -26,7 +26,7 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
       .setName('ZVec Hybrid Search')
       .setHeading();
     containerEl.createEl('p', {
-      text: 'Vault text, embeddings, and index files stay local. The semantic model is downloaded once and cached locally.',
+      text: 'Vault text, embeddings, and index files stay local. The verified desktop runtime and semantic model are downloaded once and cached locally.',
       cls: 'setting-item-description',
     });
 
@@ -256,7 +256,12 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
         .setButtonText('Incremental reindex')
         .onClick(() => this.plugin.runSafely(
           'Incremental reindex',
-          () => this.plugin.indexer.run(false),
+          async () => {
+            await this.plugin.ensureRuntimeReady();
+            const indexer = this.plugin.indexer;
+            if (!indexer) throw new Error('The search runtime is unavailable.');
+            await indexer.run(false);
+          },
         )))
       .addButton((button) => button
         .setButtonText('Reset and rebuild')
@@ -264,6 +269,6 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
         .onClick(() => this.plugin.restartRuntimeAndReindex()))
       .addButton((button) => button
         .setButtonText('Cancel')
-        .onClick(() => this.plugin.indexer.cancel()));
+        .onClick(() => this.plugin.cancelIndexing()));
   }
 }
