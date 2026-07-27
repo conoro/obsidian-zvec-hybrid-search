@@ -5,7 +5,7 @@ ZVec BM25 full-text search with semantic similarity so results can match both
 the words you typed and the meaning behind them.
 
 > [!IMPORTANT]
-> Version 0.2.3 is a public beta. It is not yet listed in the Obsidian
+> Version 0.2.4 is a public beta. It is not yet listed in the Obsidian
 > Community Plugin directory. No Node.js, server, terminal command, container,
 > or Python installation is required.
 
@@ -17,7 +17,7 @@ ZVec Hybrid Search provides:
 - All-term, any-term, and exact-phrase matching.
 - Sorting by relevance, modified date, created date, or title.
 - Best-passage-per-note or all-passage result grouping.
-- Heading-aware previews and highlighted matches.
+- Independently searchable heading sections with accurate heading navigation.
 - Automatic updates when notes are created, edited, renamed, or deleted.
 - Whole-vault or selected top-level folder indexing.
 - Vault-relative exclusion patterns.
@@ -55,8 +55,8 @@ for updates when Obsidian starts if you enable that option in its settings.
 
 ### Manual installation
 
-1. Download `zvec-hybrid-search-0.2.3.zip` from the
-   [0.2.3 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.3).
+1. Download `zvec-hybrid-search-0.2.4.zip` from the
+   [0.2.4 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.4).
 2. Extract it into this folder inside your vault:
    `.obsidian/plugins/zvec-hybrid-search/`
 3. Confirm that the folder contains `main.js`, `manifest.json`, and
@@ -72,6 +72,9 @@ from the same GitHub release and verifies its SHA-256 digest before installing
 it. This is roughly 75–100 MB depending on platform. The first semantic index
 then downloads the selected MiniLM model and may take several minutes. Later
 launches reuse both downloads and update only changed notes.
+
+Version 0.2.4 rebuilds an older index once so headings from every section
+become independently searchable. Later launches return to incremental updates.
 
 For a manual update, disable the plugin, replace `main.js`, `manifest.json`,
 and `styles.css` with the files from the newer release, restart Obsidian, and

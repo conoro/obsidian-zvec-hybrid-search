@@ -2,6 +2,22 @@
 
 All notable changes to ZVec Hybrid Search are documented here.
 
+## 0.2.4 — 2026-07-27
+
+### Fixed
+
+- Every Markdown heading now starts a searchable passage, including later
+  headings in short notes and headings without body text.
+- Search results now open at the correct heading line when a note contains
+  frontmatter.
+- Index recreation is awaited before a schema migration begins writing the
+  replacement index.
+
+### Changed
+
+- The index schema is upgraded once so existing notes are rebuilt with
+  heading-aware passages. Normal incremental indexing resumes afterward.
+
 ## 0.2.3 — 2026-07-27
 
 ### Fixed

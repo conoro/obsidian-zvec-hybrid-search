@@ -44,19 +44,31 @@ interface TextBlock {
   heading: string;
   text: string;
   line: number;
+  startsSection: boolean;
 }
 
 function blocksFromMarkdown(markdown: string): TextBlock[] {
-  const withoutFrontmatter = markdown.replace(FRONTMATTER, '');
+  const frontmatter = markdown.match(FRONTMATTER)?.[0] ?? '';
+  const lineOffset = frontmatter
+    ? frontmatter.split(/\r?\n/).length - 1
+    : 0;
+  const withoutFrontmatter = markdown.slice(frontmatter.length);
   const lines = withoutFrontmatter.split(/\r?\n/);
   const blocks: TextBlock[] = [];
   let heading = '';
   let blockLines: string[] = [];
-  let blockStart = 0;
+  let blockStart = lineOffset;
 
   const flush = (): void => {
     const text = blockLines.join('\n').trim();
-    if (text) blocks.push({ heading, text, line: blockStart });
+    if (text) {
+      blocks.push({
+        heading,
+        text,
+        line: blockStart,
+        startsSection: false,
+      });
+    }
     blockLines = [];
   };
 
@@ -65,15 +77,21 @@ function blocksFromMarkdown(markdown: string): TextBlock[] {
     if (match) {
       flush();
       heading = markdownToPlainText(match[2] ?? '');
-      blockStart = index;
+      blockStart = index + lineOffset;
+      blocks.push({
+        heading,
+        text: heading,
+        line: index + lineOffset,
+        startsSection: true,
+      });
       return;
     }
     if (!line.trim()) {
       flush();
-      blockStart = index + 1;
+      blockStart = index + lineOffset + 1;
       return;
     }
-    if (blockLines.length === 0) blockStart = index;
+    if (blockLines.length === 0) blockStart = index + lineOffset;
     blockLines.push(line);
   });
   flush();
@@ -117,6 +135,14 @@ export function chunkMarkdown(options: ChunkOptions): Passage[] {
   for (const block of blocks) {
     const plainBlock = markdownToPlainText(block.text);
     if (!plainBlock) continue;
+
+    if (block.startsSection) {
+      emit();
+      content = block.text;
+      heading = block.heading;
+      startLine = block.line;
+      continue;
+    }
 
     if (!content) {
       content = block.text;
@@ -188,4 +214,3 @@ export function matchesGlob(path: string, pattern: string): boolean {
     .replaceAll('?', '.');
   return new RegExp(`^${escaped}$`, 'i').test(path);
 }
-

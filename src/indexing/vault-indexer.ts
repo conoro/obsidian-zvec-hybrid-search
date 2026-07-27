@@ -285,7 +285,7 @@ export class VaultIndexer {
     });
 
     if (force || !this.state || !stateIsCompatible(this.state, settings)) {
-      this.store.recreate();
+      await this.store.recreate();
       this.state = newState(settings);
       this.unoptimizedPassages = 0;
     }

@@ -85,6 +85,44 @@ test('all-terms mode filters keyword and hybrid candidates', async () => {
   }
 });
 
+test('later Markdown headings are retrievable through ZVec', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-heading-test-'));
+  const store = new ZVecStore(join(directory, 'collection'));
+  await store.open();
+  try {
+    const passages = chunkMarkdown({
+      path: '2026-07-27.md',
+      markdown: [
+        '## AudioCodes Live Platform / LivePlatform',
+        '',
+        'Login details',
+        '',
+        '## AudioCodes Support',
+        '',
+        'Support portal details',
+      ].join('\n'),
+      chunkSize: 1200,
+      chunkOverlap: 160,
+      tags: [],
+      mtime: 2,
+      ctime: 1,
+    });
+    await store.upsert(
+      passages,
+      passages.map((passage) => hashEmbedding(passage.searchText)),
+    );
+
+    const matches = await store.keywordQuery('AudioCodes Support', 'all', 10);
+    assert.equal(matches.length, 1);
+    assert.equal(matches[0]?.fields.path, '2026-07-27.md');
+    assert.equal(matches[0]?.fields.heading, 'AudioCodes Support');
+    assert.equal(matches[0]?.fields.startLine, 4);
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('search can return the complete ranked set for client-side paging', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-paging-test-'));
   const store = new ZVecStore(join(directory, 'collection'));

@@ -1,4 +1,4 @@
-export const INDEX_SCHEMA_VERSION = 1;
+export const INDEX_SCHEMA_VERSION = 2;
 export const EMBEDDING_DIMENSION = 384;
 export const ROOT_FOLDER = '/';
 
