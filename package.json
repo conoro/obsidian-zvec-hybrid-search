@@ -1,0 +1,43 @@
+{
+  "name": "obsidian-zvec-hybrid-search",
+  "version": "0.1.0",
+  "description": "Local ZVec hybrid search with strict AND matching for Obsidian.",
+  "private": true,
+  "type": "module",
+  "main": "main.js",
+  "homepage": "https://github.com/conoro/zvec-hybrid-search#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/conoro/zvec-hybrid-search.git"
+  },
+  "bugs": {
+    "url": "https://github.com/conoro/zvec-hybrid-search/issues"
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs production",
+    "dev": "node esbuild.config.mjs",
+    "install:local": "node scripts/install-local.mjs",
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.2.0",
+    "@zvec/zvec": "0.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "builtin-modules": "5.0.0",
+    "esbuild": "0.28.1",
+    "obsidian": "1.13.1",
+    "tsx": "4.20.6",
+    "typescript": "7.0.2"
+  },
+  "overrides": {
+    "adm-zip": "0.6.0",
+    "sharp": "0.35.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

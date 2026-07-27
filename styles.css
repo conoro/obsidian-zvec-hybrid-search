@@ -1,0 +1,232 @@
+.zvec-search-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--size-4-2);
+  gap: var(--size-4-2);
+  overflow: hidden;
+}
+
+.zvec-setting-hidden {
+  display: none !important;
+}
+
+.zvec-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--size-4-2);
+}
+
+.zvec-search-row input {
+  width: 100%;
+}
+
+.zvec-search-options {
+  padding: var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+}
+
+.zvec-search-options summary {
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  user-select: none;
+}
+
+.zvec-search-options[open] summary {
+  margin-bottom: var(--size-4-2);
+}
+
+.zvec-search-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--size-4-2);
+}
+
+.zvec-control {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.zvec-control label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.zvec-control select {
+  width: 100%;
+}
+
+.zvec-index-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+}
+
+.zvec-index-state {
+  flex: 1;
+  min-width: 0;
+}
+
+.zvec-index-message {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  overflow-wrap: anywhere;
+}
+
+.zvec-index-message.is-error,
+.zvec-search-empty.is-error {
+  color: var(--text-error);
+}
+
+.zvec-index-state progress {
+  width: 100%;
+  height: 5px;
+  margin-top: 4px;
+}
+
+.zvec-index-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.zvec-index-actions button {
+  padding: 2px 7px;
+  font-size: var(--font-ui-smaller);
+}
+
+.zvec-index-actions button[hidden] {
+  display: none;
+}
+
+.zvec-search-summary {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.zvec-search-summary:empty {
+  display: none;
+}
+
+.zvec-search-results {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: var(--size-4-6);
+}
+
+.zvec-search-empty,
+.zvec-search-loading {
+  padding: var(--size-4-6) var(--size-4-3);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+button.zvec-result {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-normal);
+  text-align: left;
+  white-space: normal;
+}
+
+button.zvec-result:hover,
+button.zvec-result:focus-visible {
+  border-color: var(--interactive-accent);
+  background: var(--background-secondary);
+}
+
+.zvec-result-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--size-4-2);
+}
+
+.zvec-result-title {
+  overflow: hidden;
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zvec-result-heading {
+  grid-column: 1;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zvec-result-score {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+}
+
+.zvec-result-path {
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zvec-result-preview {
+  display: -webkit-box;
+  margin-top: var(--size-4-2);
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: var(--line-height-tight);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.zvec-result mark {
+  border-radius: 2px;
+  background: var(--text-highlight-bg);
+  color: inherit;
+}
+
+.zvec-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px var(--size-4-2);
+  margin-top: var(--size-4-2);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+@media (max-width: 340px) {
+  .zvec-search-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .zvec-index-bar {
+    flex-direction: column;
+  }
+}
