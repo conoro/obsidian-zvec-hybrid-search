@@ -53,6 +53,7 @@ export function installNodeExecutable(destination, platformKey) {
 
 export function pruneUnusedPlatformPayloads(nodeModules, platform, architecture) {
   rmSync(join(nodeModules, '.bin'), { recursive: true, force: true });
+  rmSync(join(nodeModules, '@types'), { recursive: true, force: true });
   rmSync(join(nodeModules, 'onnxruntime-web'), { recursive: true, force: true });
 
   const onnxPlatforms = join(nodeModules, 'onnxruntime-node', 'bin', 'napi-v6');
@@ -72,6 +73,18 @@ export function pruneUnusedPlatformPayloads(nodeModules, platform, architecture)
         }
       }
     }
+  }
+  if (platform === 'linux' && architecture === 'x64') {
+    const onnxLinuxX64 = join(onnxPlatforms, 'linux', 'x64');
+    // Transformers.js selects ONNX CPU on Node. The npm package also ships
+    // optional CUDA/TensorRT providers; they add over 300 MB and cannot be
+    // used without external NVIDIA libraries.
+    rmSync(join(onnxLinuxX64, 'libonnxruntime_providers_cuda.so'), {
+      force: true,
+    });
+    rmSync(join(onnxLinuxX64, 'libonnxruntime_providers_tensorrt.so'), {
+      force: true,
+    });
   }
 
   const imagePackages = join(nodeModules, '@img');

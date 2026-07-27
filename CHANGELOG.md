@@ -2,6 +2,17 @@
 
 All notable changes to ZVec Hybrid Search are documented here.
 
+## 0.2.1 — 2026-07-27
+
+### Changed
+
+- Removed unused CUDA and TensorRT provider libraries from the Linux x64
+  runtime. Semantic search uses ONNX CPU inference, so these files added more
+  than 300 MB without being usable by the plugin.
+- Strengthened release smoke tests from module loading to an actual ONNX CPU
+  inference on every target.
+- Removed compile-time TypeScript declarations from runtime archives.
+
 ## 0.2.0 — 2026-07-27
 
 First installable public beta.

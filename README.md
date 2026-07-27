@@ -5,7 +5,7 @@ ZVec BM25 full-text search with semantic similarity so results can match both
 the words you typed and the meaning behind them.
 
 > [!IMPORTANT]
-> Version 0.2.0 is a public beta. It is not yet listed in the Obsidian
+> Version 0.2.1 is a public beta. It is not yet listed in the Obsidian
 > Community Plugin directory. No Node.js, server, terminal command, container,
 > or Python installation is required.
 
@@ -34,8 +34,8 @@ ZVec Hybrid Search provides:
 
 Back up your vault before installing any pre-release plugin.
 
-1. Download `zvec-hybrid-search-0.2.0.zip` from the
-   [0.2.0 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.0).
+1. Download `zvec-hybrid-search-0.2.1.zip` from the
+   [0.2.1 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.1).
 2. Extract it into this folder inside your vault:
    `.obsidian/plugins/zvec-hybrid-search/`
 3. Confirm that the folder contains `main.js`, `manifest.json`, and

@@ -125,18 +125,33 @@ function run(command, commandArgs, cwd) {
 
 function smokeTest(nodeExecutable, runtimeDirectory) {
   const source = `
-    const { createRequire } = require('node:module');
-    const { join } = require('node:path');
-    const load = createRequire(join(process.cwd(), 'main.js'));
-    const zvec = load('@zvec/zvec');
-    const onnx = load('onnxruntime-node');
-    if (typeof zvec.ZVecCreateAndOpen !== 'function') {
-      throw new Error('ZVec native binding did not load.');
-    }
-    if (typeof onnx.InferenceSession?.create !== 'function') {
-      throw new Error('ONNX Runtime native binding did not load.');
-    }
-    console.log('Native runtime smoke test passed.');
+    (async () => {
+      const { createRequire } = require('node:module');
+      const { join } = require('node:path');
+      const load = createRequire(join(process.cwd(), 'main.js'));
+      const zvec = load('@zvec/zvec');
+      const onnx = load('onnxruntime-node');
+      if (typeof zvec.ZVecCreateAndOpen !== 'function') {
+        throw new Error('ZVec native binding did not load.');
+      }
+      const model = Buffer.from(
+        'CAgSF3p2ZWMtcnVudGltZS1zbW9rZS10ZXN0Oj4KEAoBWBIBWSIISWRlbnRpdHkSCGlkZW50aXR5Wg8KAVgSCgoICAESBAoCCAFiDwoBWRIKCggIARIECgIIAUICEA0=',
+        'base64',
+      );
+      const session = await onnx.InferenceSession.create(model, {
+        executionProviders: ['cpu'],
+      });
+      const output = await session.run({
+        X: new onnx.Tensor('float32', Float32Array.of(42), [1]),
+      });
+      if (output.Y?.data?.[0] !== 42) {
+        throw new Error('ONNX Runtime CPU inference returned the wrong value.');
+      }
+      console.log('Native ZVec and ONNX CPU inference smoke test passed.');
+    })().catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
   `;
   run(nodeExecutable, ['-e', source], runtimeDirectory);
 }
