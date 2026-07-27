@@ -2,6 +2,23 @@
 
 All notable changes to ZVec Hybrid Search are documented here.
 
+## 0.2.3 — 2026-07-27
+
+### Fixed
+
+- Added a Load more button so every ranked match can be reached when the total
+  exceeds the initial result batch.
+- Search summaries now distinguish the total match count from the number
+  currently shown.
+- Corrected the automatic-indexing setting description to the current
+  10-second quiet period.
+
+### Changed
+
+- The existing result-count setting now controls the initial and subsequent
+  batch size. Additional batches append without rerunning search or replacing
+  cards already on screen.
+
 ## 0.2.2 — 2026-07-27
 
 ### Fixed

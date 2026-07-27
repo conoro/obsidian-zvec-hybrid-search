@@ -5,7 +5,7 @@ ZVec BM25 full-text search with semantic similarity so results can match both
 the words you typed and the meaning behind them.
 
 > [!IMPORTANT]
-> Version 0.2.2 is a public beta. It is not yet listed in the Obsidian
+> Version 0.2.3 is a public beta. It is not yet listed in the Obsidian
 > Community Plugin directory. No Node.js, server, terminal command, container,
 > or Python installation is required.
 
@@ -55,8 +55,8 @@ for updates when Obsidian starts if you enable that option in its settings.
 
 ### Manual installation
 
-1. Download `zvec-hybrid-search-0.2.2.zip` from the
-   [0.2.2 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.2).
+1. Download `zvec-hybrid-search-0.2.3.zip` from the
+   [0.2.3 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.3).
 2. Extract it into this folder inside your vault:
    `.obsidian/plugins/zvec-hybrid-search/`
 3. Confirm that the folder contains `main.js`, `manifest.json`, and
@@ -81,7 +81,9 @@ enable it again. Your index and cached model remain in place.
 
 Type a query and press **Enter**. Use **Clear** or press **Escape** to remove
 the query and its results. Editing a completed query also removes its stale
-results immediately. Search options are collapsed by default:
+results immediately. Larger result sets are shown in configurable batches;
+use **Load more** to append the next batch without rerunning the search.
+Search options are collapsed by default:
 
 - **Hybrid** combines ZVec BM25 keyword results with semantic similarity.
 - **Keywords** uses ZVec full-text search without semantic ranking.

@@ -176,8 +176,8 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
     new Setting(this.containerEl)
-      .setName('Results shown')
-      .setDesc('Maximum result cards shown for a search.')
+      .setName('Results per batch')
+      .setDesc('Result cards shown initially and added by each Load more click.')
       .addDropdown((dropdown) => dropdown
         .addOptions({ 10: '10', 20: '20', 50: '50', 100: '100' })
         .setValue(String(this.plugin.settings.resultLimit))
@@ -193,7 +193,7 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
       .setHeading();
     new Setting(this.containerEl)
       .setName('Automatic incremental indexing')
-      .setDesc('Queue changed notes after 1.2 seconds; optimize after 45 idle seconds.')
+      .setDesc('Queue changed notes after 10 quiet seconds; optimize after 45 idle seconds.')
       .addToggle((toggle) => toggle
         .setValue(this.plugin.settings.autoIndex)
         .onChange(async (value) => {

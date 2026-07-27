@@ -85,6 +85,57 @@ test('all-terms mode filters keyword and hybrid candidates', async () => {
   }
 });
 
+test('search can return the complete ranked set for client-side paging', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-paging-test-'));
+  const store = new ZVecStore(join(directory, 'collection'));
+  await store.open();
+  try {
+    const passages = Array.from({ length: 35 }, (_, index) => chunkMarkdown({
+      path: `AudioCodes ${index + 1}.md`,
+      markdown: `# AudioCodes ${index + 1}\n\nAudioCodes support case ${index + 1}`,
+      chunkSize: 1200,
+      chunkOverlap: 0,
+      tags: [],
+      mtime: index + 1,
+      ctime: 1,
+    })).flat();
+    await store.upsert(
+      passages,
+      passages.map((passage) => hashEmbedding(passage.searchText)),
+    );
+    const embeddings = new LocalEmbeddingService(
+      join(directory, 'models'),
+      'hash',
+      'unused',
+      'q4',
+      () => undefined,
+    );
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      embeddingBackend: 'hash' as const,
+      candidateLimit: 50,
+    };
+    const engine = new HybridSearchEngine(store, embeddings, () => settings);
+    try {
+      const response = await engine.search({
+        query: 'audiocodes support',
+        mode: 'keyword',
+        matchMode: 'all',
+        sort: 'relevance',
+        grouping: 'notes',
+        limit: settings.candidateLimit,
+      });
+      assert.equal(response.total, 35);
+      assert.equal(response.results.length, 35);
+    } finally {
+      await embeddings.dispose();
+    }
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('ZVec upserts and deletes are searchable without optimize', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-update-test-'));
   const store = new ZVecStore(join(directory, 'collection'));

@@ -22,7 +22,7 @@ export class HybridSearchEngine {
     if (!query) return { results: [], total: 0, elapsedMs: 0 };
 
     const settings = this.settings();
-    const resultLimit = clampInteger(request.limit, 1, 100);
+    const resultLimit = clampInteger(request.limit, 1, 2000);
     const candidateLimit = clampInteger(
       Math.max(resultLimit, settings.candidateLimit),
       resultLimit,

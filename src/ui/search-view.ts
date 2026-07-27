@@ -17,6 +17,7 @@ import type {
   SortOrder,
 } from '../types';
 import { queryTerms } from '../search/text';
+import { ResultPager } from './result-pager';
 import { SearchSession } from './search-session';
 
 export const VIEW_TYPE_ZVEC_SEARCH = 'zvec-hybrid-search-view';
@@ -34,7 +35,10 @@ export class HybridSearchView extends ItemView {
   private summaryEl: HTMLElement | null = null;
   private searchButtonEl: HTMLButtonElement | null = null;
   private clearButtonEl: HTMLButtonElement | null = null;
+  private loadMoreButtonEl: HTMLButtonElement | null = null;
+  private activeResponse: SearchResponse | null = null;
   private readonly searchSession = new SearchSession();
+  private readonly resultPager = new ResultPager<SearchResult>();
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -70,6 +74,9 @@ export class HybridSearchView extends ItemView {
     this.queryInput = null;
     this.searchButtonEl = null;
     this.clearButtonEl = null;
+    this.loadMoreButtonEl = null;
+    this.activeResponse = null;
+    this.resultPager.clear();
     this.statusEl = null;
     this.progressEl = null;
     this.cancelButtonEl = null;
@@ -289,7 +296,7 @@ export class HybridSearchView extends ItemView {
         matchMode: this.matchMode,
         sort: this.sort,
         grouping: this.grouping,
-        limit: this.plugin.settings.resultLimit,
+        limit: this.plugin.settings.candidateLimit,
       });
       if (!this.searchSession.isCurrent(generation, query)) return;
       this.renderResults(query, response);
@@ -320,6 +327,9 @@ export class HybridSearchView extends ItemView {
   }
 
   private clearRenderedSearch(): void {
+    this.activeResponse = null;
+    this.resultPager.clear();
+    this.loadMoreButtonEl = null;
     this.resultsEl?.empty();
     this.summaryEl?.empty();
     if (this.searchButtonEl) this.searchButtonEl.disabled = false;
@@ -334,10 +344,11 @@ export class HybridSearchView extends ItemView {
   private renderResults(query: string, response: SearchResponse): void {
     if (!this.resultsEl || !this.summaryEl) return;
     this.resultsEl.empty();
-    this.summaryEl.setText(
-      `${response.total.toLocaleString()} result${response.total === 1 ? '' : 's'} · ${Math.round(response.elapsedMs)} ms`,
-    );
+    this.activeResponse = response;
+    this.resultPager.reset(response.results);
+    this.loadMoreButtonEl = null;
     if (response.results.length === 0) {
+      this.updateResultSummary(0);
       this.resultsEl.createDiv({
         cls: 'zvec-search-empty',
         text: this.matchMode === 'all'
@@ -346,12 +357,51 @@ export class HybridSearchView extends ItemView {
       });
       return;
     }
+    this.appendNextResultBatch(query);
+  }
+
+  private appendNextResultBatch(query: string): void {
+    if (!this.resultsEl || !this.activeResponse) return;
+    this.loadMoreButtonEl?.remove();
+    this.loadMoreButtonEl = null;
+    const page = this.resultPager.next(this.plugin.settings.resultLimit);
     const terms = queryTerms(query)
       .slice(0, 50)
       .map((term) => term.slice(0, 100));
-    for (const result of response.results) {
+    for (const result of page.items) {
       this.renderResult(result, terms);
     }
+    this.updateResultSummary(page.shown);
+    if (page.remaining === 0) return;
+    const nextCount = Math.min(
+      this.plugin.settings.resultLimit,
+      page.remaining,
+    );
+    this.loadMoreButtonEl = this.resultsEl.createEl('button', {
+      cls: 'zvec-load-more',
+      text: `Load ${nextCount.toLocaleString()} more`,
+      attr: {
+        type: 'button',
+        'aria-label': `Load ${nextCount.toLocaleString()} more search results`,
+      },
+    });
+    this.loadMoreButtonEl.addEventListener(
+      'click',
+      () => this.appendNextResultBatch(query),
+    );
+  }
+
+  private updateResultSummary(shown: number): void {
+    if (!this.summaryEl || !this.activeResponse) return;
+    const response = this.activeResponse;
+    const total = response.total.toLocaleString();
+    const resultLabel = response.total === 1 ? 'result' : 'results';
+    const shownLabel = shown < response.total
+      ? ` · showing ${shown.toLocaleString()}`
+      : '';
+    this.summaryEl.setText(
+      `${total} ${resultLabel}${shownLabel} · ${Math.round(response.elapsedMs)} ms`,
+    );
   }
 
   private renderResult(result: SearchResult, terms: string[]): void {
