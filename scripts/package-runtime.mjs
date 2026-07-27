@@ -110,7 +110,8 @@ function readFlag(name) {
 function run(command, commandArgs, cwd) {
   const result = spawnSync(command, commandArgs, {
     cwd,
-    shell: process.platform === 'win32',
+    shell: process.platform === 'win32'
+      && command.toLowerCase().endsWith('.cmd'),
     stdio: 'inherit',
     windowsHide: true,
   });

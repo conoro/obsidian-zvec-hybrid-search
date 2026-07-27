@@ -52,6 +52,8 @@ export class LocalEmbeddingService {
     }
     this.clearIdleTimer();
     const client = this.getClient();
+    const reportModelReady =
+      this.backend === 'minilm' && !this.loadedOnce;
     this.activeRequests += 1;
     try {
       const vectors = await client.request<Float32Array[]>(
@@ -61,6 +63,13 @@ export class LocalEmbeddingService {
       );
       this.loadedOnce = true;
       this.retryAfter = 0;
+      if (reportModelReady) {
+        this.onProgress({
+          phase: 'ready',
+          message: 'Ready for search.',
+          error: undefined,
+        });
+      }
       return vectors;
     } catch (error) {
       const wasActiveClient = this.client === client;
