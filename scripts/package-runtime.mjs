@@ -110,11 +110,15 @@ function readFlag(name) {
 function run(command, commandArgs, cwd) {
   const result = spawnSync(command, commandArgs, {
     cwd,
+    shell: process.platform === 'win32',
     stdio: 'inherit',
     windowsHide: true,
   });
   if (result.status !== 0) {
-    throw new Error(`${command} failed with status ${result.status ?? 'unknown'}.`);
+    throw new Error(
+      `${command} failed with status ${result.status ?? 'unknown'}`
+      + `${result.error ? `: ${result.error.message}` : '.'}`,
+    );
   }
 }
 

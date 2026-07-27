@@ -75,7 +75,12 @@ console.log('Installing native ZVec and local embedding runtime...');
 const install = spawnSync(
   process.platform === 'win32' ? 'npm.cmd' : 'npm',
   ['install', '--omit=dev', '--no-audit', '--no-fund'],
-  { cwd: runtimeTarget, stdio: 'inherit' },
+  {
+    cwd: runtimeTarget,
+    shell: process.platform === 'win32',
+    stdio: 'inherit',
+    windowsHide: true,
+  },
 );
 if (install.status !== 0) {
   process.exit(install.status ?? 1);
