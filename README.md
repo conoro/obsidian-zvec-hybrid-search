@@ -34,6 +34,27 @@ ZVec Hybrid Search provides:
 
 Back up your vault before installing any pre-release plugin.
 
+### With BRAT (recommended)
+
+BRAT installs the plugin directly from this GitHub repository and can keep it
+updated. This is still a GitHub beta installation; it does not mean the plugin
+has been submitted to or accepted into Obsidian's Community Plugin directory.
+
+1. In Obsidian, open **Settings → Community plugins → Browse**.
+2. Install and enable **BRAT**.
+3. Open **Settings → BRAT** and select **Add beta plugin**.
+4. Paste `https://github.com/conoro/zvec-hybrid-search`.
+5. Select **Latest version**, leave **Enable after installing the plugin**
+   enabled, and select **Add plugin**.
+6. Open ZVec Hybrid Search from the ribbon or run **Open hybrid search** from
+   the command palette.
+
+No GitHub token is needed for this public repository. To update later, open
+**Settings → BRAT** and use **Check and update plugin**. BRAT can also check
+for updates when Obsidian starts if you enable that option in its settings.
+
+### Manual installation
+
 1. Download `zvec-hybrid-search-0.2.1.zip` from the
    [0.2.1 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.1).
 2. Extract it into this folder inside your vault:
@@ -52,8 +73,8 @@ it. This is roughly 75–100 MB depending on platform. The first semantic index
 then downloads the selected MiniLM model and may take several minutes. Later
 launches reuse both downloads and update only changed notes.
 
-To update, disable the plugin, replace `main.js`, `manifest.json`, and
-`styles.css` with the files from the newer release, restart Obsidian, and
+For a manual update, disable the plugin, replace `main.js`, `manifest.json`,
+and `styles.css` with the files from the newer release, restart Obsidian, and
 enable it again. Your index and cached model remain in place.
 
 ## Search
