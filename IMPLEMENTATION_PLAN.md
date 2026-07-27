@@ -5,8 +5,7 @@
 Build a desktop-only Obsidian Community Plugin that replaces the normal search
 workflow with a fast right-sidebar search powered by
 [ZVec](https://github.com/alibaba/zvec). The plugin must require no manually
-started server, keep the vault contents local, and make unquoted multi-term
-searches use `AND` by default.
+started server and keep the vault contents local.
 
 Development installs accept any vault path through `--vault` or the
 `OBSIDIAN_VAULT` environment variable; no user-specific path is compiled into
@@ -21,7 +20,7 @@ The first complete version will provide:
   events handled automatically.
 - A settings screen for selecting the whole vault or any combination of
   top-level folders.
-- ZVec BM25 full-text search with explicit `AND`, `OR`, and phrase modes.
+- ZVec BM25 full-text search with configurable term-matching modes.
 - Local semantic embeddings using MiniLM through Transformers.js. The model is
   downloaded automatically on first use and cached locally; no service or
   Python runtime is required.
@@ -78,11 +77,9 @@ vector with an HNSW cosine index.
 - **Keywords**: ZVec BM25 only.
 - **Semantic**: MiniLM vector similarity only.
 
-For the default **All terms** match mode, a ZVec FTS query with
-`defaultOperator: "AND"` is the mandatory candidate set. Hybrid signals may
-rerank those candidates but may not reintroduce notes that omit a query term.
-This makes the requested `AND` behavior a hard invariant rather than a ranking
-preference.
+The selected term-matching mode is passed to ZVec FTS: all-term searches use
+`AND`, any-term searches use `OR`, and phrase searches preserve the phrase.
+Hybrid signals rerank the resulting candidate set.
 
 ### Storage
 
@@ -129,13 +126,11 @@ cycles without stale results.
 ### Phase 3 — search behavior
 
 - Implement keyword, semantic, and hybrid retrieval.
-- Enforce `AND` as the default multi-term behavior.
-- Add phrase and `OR` modes.
+- Add all-term, any-term, and phrase matching modes.
 - Add note/passages grouping and every supported sort order.
 - Add deterministic tie-breaking and empty/error states.
 
-**Exit criteria:** automated tests prove that `alpha beta` excludes a note that
-only contains `alpha` in All-terms mode.
+**Exit criteria:** automated tests cover all-term and any-term result sets.
 
 ### Phase 4 — Obsidian UI
 
@@ -178,7 +173,7 @@ roadmap.
 ## Validation checklist
 
 - [ ] No companion server, daemon, Docker container, or Python process.
-- [ ] Default multi-term searches are strict `AND`.
+- [ ] All-term, any-term, and phrase matching modes work as configured.
 - [ ] Whole-vault and top-level-folder indexing both work.
 - [ ] Initial indexing reports progress and can be cancelled.
 - [ ] Edits, creates, deletes, and renames update results automatically.

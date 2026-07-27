@@ -134,7 +134,7 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
         }));
     new Setting(this.containerEl)
       .setName('Default term matching')
-      .setDesc('All terms uses ZVec conjunction search and is recommended.')
+      .setDesc('Choose all terms, any term, or an exact phrase.')
       .addDropdown((dropdown) => dropdown
         .addOptions({
           all: 'All terms (AND)',

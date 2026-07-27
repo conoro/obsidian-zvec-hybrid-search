@@ -1,24 +1,20 @@
 # ZVec Hybrid Search
 
 ZVec Hybrid Search adds a fast local search sidebar to Obsidian. It combines
-strict keyword matching with semantic search so that results can match both
+ZVec BM25 full-text search with semantic similarity so results can match both
 the words you typed and the meaning behind them.
 
 > [!IMPORTANT]
-> Version 0.1.0 is an early developer preview. It is not yet available in the
+> Version 0.1.1 is an early developer preview. It is not yet available in the
 > Obsidian Community Plugin directory and is not currently compatible with
 > BRAT. The manual installation below requires Node.js 22 or newer.
 
 ## Why use it?
 
-Obsidian's built-in search can treat multiple unquoted terms as alternatives.
-ZVec Hybrid Search uses `AND` by default: a search for `alpha beta` only
-returns notes containing both terms.
-
-It also provides:
+ZVec Hybrid Search provides:
 
 - Hybrid, keyword-only, and semantic-only search.
-- Exact phrase, all-terms (`AND`), and any-term (`OR`) matching.
+- All-term, any-term, and exact-phrase matching.
 - Sorting by relevance, modified date, created date, or title.
 - Best-passage-per-note or all-passage result grouping.
 - Heading-aware previews and highlighted matches.

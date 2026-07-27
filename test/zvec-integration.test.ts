@@ -9,7 +9,7 @@ import { chunkMarkdown } from '../src/search/text';
 import { ZVecStore } from '../src/search/zvec-store';
 import { DEFAULT_SETTINGS } from '../src/types';
 
-test('ZVec strict AND remains mandatory in keyword and hybrid modes', async () => {
+test('all-terms mode filters keyword and hybrid candidates', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-test-'));
   const store = new ZVecStore(join(directory, 'collection'));
   await store.open();

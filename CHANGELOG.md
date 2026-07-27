@@ -2,6 +2,14 @@
 
 All notable changes to ZVec Hybrid Search are documented here.
 
+## 0.1.1 — 2026-07-27
+
+### Changed
+
+- Refocused project descriptions and documentation on local hybrid retrieval,
+  indexing, and search controls.
+- Documented all-term matching as a configurable default.
+
 ## 0.1.0 — 2026-07-27
 
 Initial public developer preview.
@@ -9,7 +17,7 @@ Initial public developer preview.
 ### Added
 
 - Hybrid, keyword, and semantic search backed by ZVec.
-- Strict `AND` matching for multi-term searches by default.
+- Configurable all-term, any-term, and exact-phrase matching.
 - BM25 full-text search, MiniLM semantic embeddings, and hybrid ranking.
 - Sort order, result grouping, match mode, and result-limit controls.
 - Whole-vault or selected-folder indexing with vault-relative exclusions.
