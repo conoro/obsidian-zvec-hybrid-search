@@ -13,7 +13,7 @@
 
 .zvec-search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: var(--size-4-2);
 }
 

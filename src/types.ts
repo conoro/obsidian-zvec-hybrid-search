@@ -108,6 +108,7 @@ export interface IndexStatus {
   total: number;
   filesIndexed: number;
   passagesIndexed: number;
+  background?: boolean;
   error?: string;
 }
 

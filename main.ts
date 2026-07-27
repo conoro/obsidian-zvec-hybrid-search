@@ -37,6 +37,7 @@ const INITIAL_STATUS: IndexStatus = {
   total: 0,
   filesIndexed: 0,
   passagesIndexed: 0,
+  background: false,
 };
 
 export default class ZVecHybridSearchPlugin
@@ -279,6 +280,7 @@ export default class ZVecHybridSearchPlugin
         message,
         completed,
         total,
+        background: false,
       }),
     );
     const runtime = await this.runtimeManager.ensure();
@@ -302,7 +304,10 @@ export default class ZVecHybridSearchPlugin
       this.settings.embeddingBackend,
       this.settings.embeddingModel,
       this.settings.embeddingDtype,
-      (status) => this.updateStatus(status),
+      (status) => this.updateStatus({
+        ...status,
+        background: this.indexer?.isRunningInBackground ?? false,
+      }),
       runtime.rootDirectory,
       undefined,
       runtime.nodeExecutable,

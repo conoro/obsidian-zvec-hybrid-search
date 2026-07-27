@@ -19,10 +19,10 @@ import {
 import { LocalEmbeddingService } from '../search/embeddings';
 import { chunkMarkdown, matchesGlob } from '../search/text';
 import { ZVecStore } from '../search/zvec-store';
+import { CHANGE_DEBOUNCE_MS } from './cadence';
 
 type StatusSink = (status: Partial<IndexStatus>) => void;
 
-const CHANGE_DEBOUNCE_MS = 1200;
 const OPTIMIZE_IDLE_MS = 45_000;
 const OPTIMIZE_PASSAGE_THRESHOLD = 100;
 const RECONCILIATION_INTERVAL_MS = 60 * 60_000;
@@ -55,6 +55,7 @@ export class VaultIndexer {
   private recoveryRequested = false;
   private disposed = false;
   private stateWriteGeneration = 0;
+  private backgroundRun = false;
 
   constructor(
     private readonly app: App,
@@ -64,6 +65,10 @@ export class VaultIndexer {
     private readonly statePath: string,
     private readonly onStatus: StatusSink,
   ) {}
+
+  get isRunningInBackground(): boolean {
+    return this.backgroundRun && this.activeRun !== null;
+  }
 
   async initialize(): Promise<void> {
     await withTimeout(
@@ -79,7 +84,7 @@ export class VaultIndexer {
     this.reconciliationTimer = window.setInterval(() => {
       if (this.settings().autoIndex) this.scheduleReconciliation();
     }, RECONCILIATION_INTERVAL_MS);
-    this.onStatus({
+    this.emitStatus({
       phase: 'idle',
       message: this.store.stats.docCount > 0
         ? `Index ready: ${this.store.stats.docCount.toLocaleString()} passages`
@@ -95,6 +100,7 @@ export class VaultIndexer {
     this.fullReconciliationRequested = true;
     this.forceRebuildRequested ||= force;
     this.recoveryRequested = true;
+    this.backgroundRun = false;
     return this.ensureRun();
   }
 
@@ -125,6 +131,7 @@ export class VaultIndexer {
     this.cancelRequested = false;
     this.activeRun = this.drainWorkQueue().finally(() => {
       this.activeRun = null;
+      this.backgroundRun = false;
     });
     return this.activeRun;
   }
@@ -151,7 +158,7 @@ export class VaultIndexer {
     void this.embeddings.cancelActive().catch((error) => {
       console.warn('ZVec Hybrid Search could not stop embedding work', error);
     });
-    this.onStatus({ message: 'Cancelling after the current batch…' });
+    this.emitStatus({ message: 'Cancelling after the current batch…' });
   }
 
   async resetAndReindex(): Promise<void> {
@@ -245,7 +252,7 @@ export class VaultIndexer {
       }
     } catch (error) {
       if (this.cancelRequested) {
-        this.onStatus({
+        this.emitStatus({
           phase: 'cancelled',
           message: 'Indexing cancelled.',
           passagesIndexed: this.store.stats.docCount,
@@ -254,7 +261,7 @@ export class VaultIndexer {
       }
       failed = true;
       const message = errorMessage(error);
-      this.onStatus({
+      this.emitStatus({
         phase: 'error',
         message: 'Indexing failed.',
         error: message,
@@ -269,7 +276,7 @@ export class VaultIndexer {
 
   private async performReconciliation(force: boolean): Promise<void> {
     const settings = this.settings();
-    this.onStatus({
+    this.emitStatus({
       phase: 'scanning',
       message: 'Scanning Markdown files…',
       completed: 0,
@@ -317,7 +324,7 @@ export class VaultIndexer {
       }
     }
 
-    this.onStatus({
+    this.emitStatus({
       phase: 'scanning',
       message: `${changedFiles.length.toLocaleString()} changed, ${stalePaths.length.toLocaleString()} removed`,
       completed: 0,
@@ -336,7 +343,7 @@ export class VaultIndexer {
       if (this.cancelRequested) break;
       affectedPassages += await this.updateFile(file, settings, currentState);
       filesIndexed += 1;
-      this.onStatus({
+      this.emitStatus({
         filesIndexed,
         passagesIndexed: this.store.stats.docCount,
       });
@@ -355,7 +362,7 @@ export class VaultIndexer {
     }
     const currentState = this.state;
     const uniquePaths = [...new Set(paths)];
-    this.onStatus({
+    this.emitStatus({
       phase: 'scanning',
       message: `Checking ${uniquePaths.length.toLocaleString()} changed path${uniquePaths.length === 1 ? '' : 's'}…`,
       completed: 0,
@@ -384,7 +391,7 @@ export class VaultIndexer {
       } else if (currentState.files[path]) {
         affectedPassages += await this.removePath(path, currentState);
       }
-      this.onStatus({
+      this.emitStatus({
         completedDelta: 1,
         filesIndexed,
         passagesIndexed: this.store.stats.docCount,
@@ -400,7 +407,7 @@ export class VaultIndexer {
     state: PersistedIndexState,
   ): Promise<number> {
     const snapshot = await this.passagesForFile(file, settings);
-    this.onStatus({
+    this.emitStatus({
       phase: 'embedding',
       message: `Embedding ${snapshot.path}`,
     });
@@ -420,7 +427,7 @@ export class VaultIndexer {
       return 0;
     }
 
-    this.onStatus({
+    this.emitStatus({
       phase: 'writing',
       message: `Writing ${snapshot.path}`,
     });
@@ -467,7 +474,7 @@ export class VaultIndexer {
       }
     }
     const noteCount = Object.keys(state.files).length;
-    this.onStatus({
+    this.emitStatus({
       phase: 'ready',
       message: `Ready: ${this.store.stats.docCount.toLocaleString()} passages from ${noteCount.toLocaleString()} notes`,
       completed: noteCount,
@@ -479,14 +486,14 @@ export class VaultIndexer {
   private async performOptimization(): Promise<void> {
     if (this.unoptimizedPassages === 0) return;
     this.clearOptimizationTimer();
-    this.onStatus({
+    this.emitStatus({
       phase: 'optimizing',
       message: 'Optimizing the ZVec index during idle time…',
     });
     await this.store.optimize();
     this.unoptimizedPassages = 0;
     const noteCount = Object.keys(this.state?.files ?? {}).length;
-    this.onStatus({
+    this.emitStatus({
       phase: 'ready',
       message: `Ready: ${this.store.stats.docCount.toLocaleString()} passages from ${noteCount.toLocaleString()} notes`,
       passagesIndexed: this.store.stats.docCount,
@@ -567,7 +574,7 @@ export class VaultIndexer {
   }
 
   private incrementProgress(): void {
-    this.onStatus({ completedDelta: 1 } as Partial<IndexStatus>);
+    this.emitStatus({ completedDelta: 1 } as Partial<IndexStatus>);
   }
 
   private async readState(): Promise<PersistedIndexState | null> {
@@ -632,16 +639,24 @@ export class VaultIndexer {
   }
 
   private startBackgroundRun(context: string): void {
+    if (!this.activeRun) this.backgroundRun = true;
     void this.ensureRun().catch((error) => {
       console.error(`ZVec Hybrid Search ${context} failed`, error);
     });
   }
 
   private reportCancelled(): void {
-    this.onStatus({
+    this.emitStatus({
       phase: 'cancelled',
       message: 'Indexing cancelled. Run reindex to continue.',
       passagesIndexed: this.store.stats.docCount,
+    });
+  }
+
+  private emitStatus(status: Partial<IndexStatus>): void {
+    this.onStatus({
+      ...status,
+      background: this.backgroundRun,
     });
   }
 }

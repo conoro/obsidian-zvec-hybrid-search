@@ -2,6 +2,20 @@
 
 All notable changes to ZVec Hybrid Search are documented here.
 
+## 0.2.2 — 2026-07-27
+
+### Fixed
+
+- Added a Clear button that removes the query and results and cancels any
+  in-flight search display.
+- Editing or deleting a completed query now removes stale results immediately.
+- Automatic incremental indexing no longer redraws or shifts the result list.
+
+### Changed
+
+- Increased the note-change quiet period from 1.2 seconds to 10 seconds so
+  continuous editing is indexed as one efficient background update.
+
 ## 0.2.1 — 2026-07-27
 
 ### Changed

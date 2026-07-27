@@ -5,7 +5,7 @@ ZVec BM25 full-text search with semantic similarity so results can match both
 the words you typed and the meaning behind them.
 
 > [!IMPORTANT]
-> Version 0.2.1 is a public beta. It is not yet listed in the Obsidian
+> Version 0.2.2 is a public beta. It is not yet listed in the Obsidian
 > Community Plugin directory. No Node.js, server, terminal command, container,
 > or Python installation is required.
 
@@ -55,8 +55,8 @@ for updates when Obsidian starts if you enable that option in its settings.
 
 ### Manual installation
 
-1. Download `zvec-hybrid-search-0.2.1.zip` from the
-   [0.2.1 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.1).
+1. Download `zvec-hybrid-search-0.2.2.zip` from the
+   [0.2.2 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.2).
 2. Extract it into this folder inside your vault:
    `.obsidian/plugins/zvec-hybrid-search/`
 3. Confirm that the folder contains `main.js`, `manifest.json`, and
@@ -79,7 +79,9 @@ enable it again. Your index and cached model remain in place.
 
 ## Search
 
-Type a query and press **Enter**. Search options are collapsed by default:
+Type a query and press **Enter**. Use **Clear** or press **Escape** to remove
+the query and its results. Editing a completed query also removes its stale
+results immediately. Search options are collapsed by default:
 
 - **Hybrid** combines ZVec BM25 keyword results with semantic similarity.
 - **Keywords** uses ZVec full-text search without semantic ranking.
@@ -106,9 +108,10 @@ requires **Save and rebuild**.
 
 ## Background activity and battery use
 
-Normal index maintenance is event-driven. Note events are coalesced for 1.2
-seconds, small batches are optimized after 45 idle seconds, and an hourly
-metadata reconciliation catches missed external changes.
+Normal index maintenance is event-driven. Note events are coalesced until
+editing has been quiet for 10 seconds, small batches are optimized after 45
+idle seconds, and an hourly metadata reconciliation catches missed external
+changes. Automatic incremental updates do not redraw the search results.
 
 The ZVec and embedding processes sleep when idle. The embedding process exits
 after 10 minutes without work and restarts automatically. There is no

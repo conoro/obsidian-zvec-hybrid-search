@@ -17,6 +17,7 @@ import type {
   SortOrder,
 } from '../types';
 import { queryTerms } from '../search/text';
+import { SearchSession } from './search-session';
 
 export const VIEW_TYPE_ZVEC_SEARCH = 'zvec-hybrid-search-view';
 
@@ -32,7 +33,8 @@ export class HybridSearchView extends ItemView {
   private resultsEl: HTMLElement | null = null;
   private summaryEl: HTMLElement | null = null;
   private searchButtonEl: HTMLButtonElement | null = null;
-  private searchGeneration = 0;
+  private clearButtonEl: HTMLButtonElement | null = null;
+  private readonly searchSession = new SearchSession();
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -64,9 +66,10 @@ export class HybridSearchView extends ItemView {
   }
 
   override async onClose(): Promise<void> {
-    this.searchGeneration += 1;
+    this.searchSession.clear();
     this.queryInput = null;
     this.searchButtonEl = null;
+    this.clearButtonEl = null;
     this.statusEl = null;
     this.progressEl = null;
     this.cancelButtonEl = null;
@@ -76,9 +79,6 @@ export class HybridSearchView extends ItemView {
 
   updateIndexStatus(status: IndexStatus): void {
     if (!this.statusEl || !this.progressEl) return;
-    this.statusEl.setText(status.error
-      ? `${status.message} ${status.error}`
-      : status.message);
     const isActive = [
       'loading',
       'downloading-runtime',
@@ -88,6 +88,20 @@ export class HybridSearchView extends ItemView {
       'writing',
       'optimizing',
     ].includes(status.phase);
+    if (status.background && isActive && !status.error) {
+      if (!this.statusEl.textContent) {
+        this.statusEl.setText(
+          `Index ready: ${status.passagesIndexed.toLocaleString()} passages`,
+        );
+      }
+      this.progressEl.hidden = true;
+      this.cancelButtonEl?.setAttribute('hidden', '');
+      return;
+    }
+    const message = status.error
+      ? `${status.message} ${status.error}`
+      : status.message;
+    if (this.statusEl.textContent !== message) this.statusEl.setText(message);
     this.progressEl.toggleAttribute('hidden', !isActive);
     if (status.total > 0) {
       this.progressEl.max = status.total;
@@ -125,12 +139,27 @@ export class HybridSearchView extends ItemView {
       attr: { 'aria-label': 'Run search' },
     });
     this.searchButtonEl.addEventListener('click', () => void this.runSearch());
+    this.clearButtonEl = searchRow.createEl('button', {
+      text: 'Clear',
+      attr: { 'aria-label': 'Clear search and results' },
+    });
+    this.clearButtonEl.disabled = true;
+    this.clearButtonEl.addEventListener('click', () => this.clearSearch());
+    this.queryInput.addEventListener('input', () => {
+      if (
+        this.searchSession.invalidateIfInputChanged(
+          this.queryInput?.value ?? '',
+        )
+      ) {
+        this.clearRenderedSearch();
+      }
+      this.syncClearButton();
+    });
     this.queryInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') void this.runSearch();
       if (event.key === 'Escape') {
-        this.queryInput?.value && (this.queryInput.value = '');
-        this.resultsEl?.empty();
-        this.summaryEl?.empty();
+        event.preventDefault();
+        this.clearSearch();
       }
     });
 
@@ -236,11 +265,15 @@ export class HybridSearchView extends ItemView {
 
   private async runSearch(): Promise<void> {
     const query = (this.queryInput?.value.trim() ?? '').slice(0, 1000);
-    if (!query || !this.resultsEl || !this.summaryEl) return;
+    if (!query || !this.resultsEl || !this.summaryEl) {
+      this.clearSearch();
+      return;
+    }
     if (this.queryInput && this.queryInput.value !== query) {
       this.queryInput.value = query;
     }
-    const generation = ++this.searchGeneration;
+    const generation = this.searchSession.begin(query);
+    this.syncClearButton();
     if (this.searchButtonEl) this.searchButtonEl.disabled = true;
     this.resultsEl.empty();
     this.resultsEl.createDiv({ cls: 'zvec-search-loading', text: 'Searching…' });
@@ -258,10 +291,10 @@ export class HybridSearchView extends ItemView {
         grouping: this.grouping,
         limit: this.plugin.settings.resultLimit,
       });
-      if (generation !== this.searchGeneration) return;
+      if (!this.searchSession.isCurrent(generation, query)) return;
       this.renderResults(query, response);
     } catch (error) {
-      if (generation !== this.searchGeneration) return;
+      if (!this.searchSession.isCurrent(generation, query)) return;
       const message = error instanceof Error ? error.message : String(error);
       this.resultsEl.empty();
       this.resultsEl.createDiv({
@@ -269,10 +302,33 @@ export class HybridSearchView extends ItemView {
         text: `Search failed: ${message}`,
       });
     } finally {
-      if (generation === this.searchGeneration && this.searchButtonEl) {
+      if (
+        this.searchSession.isCurrent(generation, query)
+        && this.searchButtonEl
+      ) {
         this.searchButtonEl.disabled = false;
       }
     }
+  }
+
+  private clearSearch(): void {
+    this.searchSession.clear();
+    if (this.queryInput) this.queryInput.value = '';
+    this.clearRenderedSearch();
+    this.syncClearButton();
+    this.queryInput?.focus();
+  }
+
+  private clearRenderedSearch(): void {
+    this.resultsEl?.empty();
+    this.summaryEl?.empty();
+    if (this.searchButtonEl) this.searchButtonEl.disabled = false;
+  }
+
+  private syncClearButton(): void {
+    if (!this.clearButtonEl) return;
+    this.clearButtonEl.disabled = !this.searchSession.hasActiveSearch
+      && !(this.queryInput?.value.trim());
   }
 
   private renderResults(query: string, response: SearchResponse): void {
