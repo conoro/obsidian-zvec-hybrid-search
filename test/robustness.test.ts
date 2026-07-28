@@ -20,6 +20,7 @@ import {
 import {
   RuntimeManager,
   extractZipSafely,
+  isExpectedRuntimeAssetUrl,
   runtimeAssetName,
   runtimeNodeRelativePath,
   runtimePlatformKey,
@@ -109,6 +110,37 @@ test('runtime platform selection covers every published desktop target', () => {
     runtimeAssetName('0.2.0', 'linux-arm64'),
     'zvec-runtime-0.2.0-linux-arm64.zip',
   );
+});
+
+test('runtime downloads accept only the old and new repository paths', () => {
+  const version = '0.2.5';
+  const assetName = runtimeAssetName(version, 'darwin-arm64');
+  for (const repository of [
+    'conoro/zvec-hybrid-search',
+    'conoro/obsidian-zvec-hybrid-search',
+  ]) {
+    assert.equal(
+      isExpectedRuntimeAssetUrl(
+        new URL(
+          `https://github.com/${repository}/releases/download/${version}/${assetName}`,
+        ),
+        version,
+        assetName,
+      ),
+      true,
+    );
+  }
+  for (const url of [
+    `https://github.com/another-owner/obsidian-zvec-hybrid-search/releases/download/${version}/${assetName}`,
+    `https://github.com/conoro/another-repository/releases/download/${version}/${assetName}`,
+    `https://github.com/conoro/obsidian-zvec-hybrid-search/releases/download/0.2.4/${assetName}`,
+    `https://github.com/conoro/obsidian-zvec-hybrid-search/releases/download/${version}/different.zip`,
+  ]) {
+    assert.equal(
+      isExpectedRuntimeAssetUrl(new URL(url), version, assetName),
+      false,
+    );
+  }
 });
 
 test('runtime archive paths reject traversal and absolute locations', () => {

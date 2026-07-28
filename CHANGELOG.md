@@ -2,6 +2,20 @@
 
 All notable changes to ZVec Hybrid Search are documented here.
 
+## 0.2.5 — 2026-07-28
+
+### Changed
+
+- Runtime release validation now accepts both the current repository path and
+  the planned `conoro/obsidian-zvec-hybrid-search` path.
+- URL validation remains restricted to the two exact repository names,
+  matching release version, and matching runtime asset name.
+
+### Migration
+
+- This compatibility release keeps existing BRAT installations and fresh
+  runtime downloads working while the GitHub repository is renamed.
+
 ## 0.2.4 — 2026-07-27
 
 ### Fixed

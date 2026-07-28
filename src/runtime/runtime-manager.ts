@@ -23,8 +23,12 @@ import {
   PluginRuntimeError,
 } from './safety';
 
+const RELEASE_REPOSITORIES = [
+  'conoro/zvec-hybrid-search',
+  'conoro/obsidian-zvec-hybrid-search',
+] as const;
 const RELEASE_API =
-  'https://api.github.com/repos/conoro/zvec-hybrid-search/releases/tags/';
+  `https://api.github.com/repos/${RELEASE_REPOSITORIES[0]}/releases/tags/`;
 const MAX_RELEASE_METADATA_BYTES = 2 * 1024 * 1024;
 const MAX_ARCHIVE_BYTES = 600 * 1024 * 1024;
 const MAX_EXTRACTED_BYTES = 1_500 * 1024 * 1024;
@@ -268,10 +272,7 @@ export class RuntimeManager {
     }
     const url = new URL(asset.browser_download_url);
     assertAllowedUrl(url);
-    const expectedUrl = new URL(
-      `https://github.com/conoro/zvec-hybrid-search/releases/download/${encodeURIComponent(this.version)}/${expectedName}`,
-    );
-    if (url.href !== expectedUrl.href) {
+    if (!isExpectedRuntimeAssetUrl(url, this.version, expectedName)) {
       throw new Error(`Release asset ${expectedName} has an unexpected URL.`);
     }
     return {
@@ -307,6 +308,19 @@ export function runtimeAssetName(
   platformKey: RuntimePlatformKey,
 ): string {
   return `zvec-runtime-${version}-${platformKey}.zip`;
+}
+
+export function isExpectedRuntimeAssetUrl(
+  url: URL,
+  version: string,
+  assetName: string,
+): boolean {
+  return RELEASE_REPOSITORIES.some((repository) => {
+    const expected = new URL(
+      `https://github.com/${repository}/releases/download/${encodeURIComponent(version)}/${assetName}`,
+    );
+    return url.href === expected.href;
+  });
 }
 
 export function runtimeNodeRelativePath(

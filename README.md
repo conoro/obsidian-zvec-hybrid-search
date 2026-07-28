@@ -5,7 +5,7 @@ ZVec BM25 full-text search with semantic similarity so results can match both
 the words you typed and the meaning behind them.
 
 > [!IMPORTANT]
-> Version 0.2.4 is a public beta. It is not yet listed in the Obsidian
+> Version 0.2.5 is a public beta. It is not yet listed in the Obsidian
 > Community Plugin directory. No Node.js, server, terminal command, container,
 > or Python installation is required.
 
@@ -55,8 +55,8 @@ for updates when Obsidian starts if you enable that option in its settings.
 
 ### Manual installation
 
-1. Download `zvec-hybrid-search-0.2.4.zip` from the
-   [0.2.4 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.4).
+1. Download `zvec-hybrid-search-0.2.5.zip` from the
+   [0.2.5 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.5).
 2. Extract it into this folder inside your vault:
    `.obsidian/plugins/zvec-hybrid-search/`
 3. Confirm that the folder contains `main.js`, `manifest.json`, and
@@ -73,8 +73,9 @@ it. This is roughly 75–100 MB depending on platform. The first semantic index
 then downloads the selected MiniLM model and may take several minutes. Later
 launches reuse both downloads and update only changed notes.
 
-Version 0.2.4 rebuilds an older index once so headings from every section
-become independently searchable. Later launches return to incremental updates.
+Version 0.2.4 and newer rebuild an older index once so headings from every
+section become independently searchable. Later launches return to incremental
+updates.
 
 For a manual update, disable the plugin, replace `main.js`, `manifest.json`,
 and `styles.css` with the files from the newer release, restart Obsidian, and
