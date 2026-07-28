@@ -113,7 +113,7 @@ test('runtime platform selection covers every published desktop target', () => {
 });
 
 test('runtime downloads accept only the old and new repository paths', () => {
-  const version = '0.2.5';
+  const version = '0.2.6';
   const assetName = runtimeAssetName(version, 'darwin-arm64');
   for (const repository of [
     'conoro/zvec-hybrid-search',
@@ -133,7 +133,7 @@ test('runtime downloads accept only the old and new repository paths', () => {
   for (const url of [
     `https://github.com/another-owner/obsidian-zvec-hybrid-search/releases/download/${version}/${assetName}`,
     `https://github.com/conoro/another-repository/releases/download/${version}/${assetName}`,
-    `https://github.com/conoro/obsidian-zvec-hybrid-search/releases/download/0.2.4/${assetName}`,
+    `https://github.com/conoro/obsidian-zvec-hybrid-search/releases/download/0.2.5/${assetName}`,
     `https://github.com/conoro/obsidian-zvec-hybrid-search/releases/download/${version}/different.zip`,
   ]) {
     assert.equal(

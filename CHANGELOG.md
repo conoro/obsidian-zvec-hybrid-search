@@ -1,6 +1,23 @@
 # Changelog
 
-All notable changes to ZVec Hybrid Search are documented here.
+All notable changes to ZVec Hybrid Search for Obsidian are documented here.
+
+## 0.2.6 — 2026-07-28
+
+### Changed
+
+- Renamed the project and GitHub repository to **ZVec Hybrid Search for
+  Obsidian** and `conoro/obsidian-zvec-hybrid-search` so its purpose is clear
+  outside Obsidian.
+- Runtime downloads now use the renamed repository as their canonical source.
+- Existing installations, BRAT entries, release links, and clones using the
+  previous repository path continue to work through GitHub redirects.
+
+### Compatibility
+
+- The in-app name remains **ZVec Hybrid Search**, and the plugin ID remains
+  `zvec-hybrid-search`, preserving updates and user settings for existing
+  installations.
 
 ## 0.2.5 — 2026-07-28
 

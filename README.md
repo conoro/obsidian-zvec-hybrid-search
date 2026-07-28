@@ -1,11 +1,12 @@
-# ZVec Hybrid Search
+# ZVec Hybrid Search for Obsidian
 
-ZVec Hybrid Search adds a fast local search sidebar to Obsidian. It combines
+ZVec Hybrid Search for Obsidian adds a fast local search sidebar. It combines
 ZVec BM25 full-text search with semantic similarity so results can match both
-the words you typed and the meaning behind them.
+the words you typed and the meaning behind them. Inside Obsidian, the plugin is
+shown as **ZVec Hybrid Search**.
 
 > [!IMPORTANT]
-> Version 0.2.5 is a public beta. It is not yet listed in the Obsidian
+> Version 0.2.6 is a public beta. It is not yet listed in the Obsidian
 > Community Plugin directory. No Node.js, server, terminal command, container,
 > or Python installation is required.
 
@@ -43,7 +44,7 @@ has been submitted to or accepted into Obsidian's Community Plugin directory.
 1. In Obsidian, open **Settings → Community plugins → Browse**.
 2. Install and enable **BRAT**.
 3. Open **Settings → BRAT** and select **Add beta plugin**.
-4. Paste `https://github.com/conoro/zvec-hybrid-search`.
+4. Paste `https://github.com/conoro/obsidian-zvec-hybrid-search`.
 5. Select **Latest version**, leave **Enable after installing the plugin**
    enabled, and select **Add plugin**.
 6. Open ZVec Hybrid Search from the ribbon or run **Open hybrid search** from
@@ -55,8 +56,8 @@ for updates when Obsidian starts if you enable that option in its settings.
 
 ### Manual installation
 
-1. Download `zvec-hybrid-search-0.2.5.zip` from the
-   [0.2.5 GitHub release](https://github.com/conoro/zvec-hybrid-search/releases/tag/0.2.5).
+1. Download `zvec-hybrid-search-0.2.6.zip` from the
+   [0.2.6 GitHub release](https://github.com/conoro/obsidian-zvec-hybrid-search/releases/tag/0.2.6).
 2. Extract it into this folder inside your vault:
    `.obsidian/plugins/zvec-hybrid-search/`
 3. Confirm that the folder contains `main.js`, `manifest.json`, and
@@ -146,10 +147,11 @@ modify or delete notes.
 
 ## Bugs and security
 
-Open a [GitHub issue](https://github.com/conoro/zvec-hybrid-search/issues) for
-ordinary bugs. Do not attach private notes, vault paths, model caches, or index
-files. Security issues should use GitHub's private vulnerability reporting as
-described in [SECURITY.md](SECURITY.md).
+Open a
+[GitHub issue](https://github.com/conoro/obsidian-zvec-hybrid-search/issues)
+for ordinary bugs. Do not attach private notes, vault paths, model caches, or
+index files. Security issues should use GitHub's private vulnerability
+reporting as described in [SECURITY.md](SECURITY.md).
 
 Release history is in [CHANGELOG.md](CHANGELOG.md). Source-build and
 contribution details are in [DEVELOPMENT.md](DEVELOPMENT.md).

@@ -24,8 +24,8 @@ import {
 } from './safety';
 
 const RELEASE_REPOSITORIES = [
-  'conoro/zvec-hybrid-search',
   'conoro/obsidian-zvec-hybrid-search',
+  'conoro/zvec-hybrid-search',
 ] as const;
 const RELEASE_API =
   `https://api.github.com/repos/${RELEASE_REPOSITORIES[0]}/releases/tags/`;
