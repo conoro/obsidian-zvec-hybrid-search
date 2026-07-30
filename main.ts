@@ -39,6 +39,7 @@ const INITIAL_STATUS: IndexStatus = {
   passagesIndexed: 0,
   background: false,
 };
+const STARTUP_RECONCILIATION_DELAY_MS = 30_000;
 
 export default class ZVecHybridSearchPlugin
   extends Plugin
@@ -141,7 +142,15 @@ export default class ZVecHybridSearchPlugin
         }
       }));
       if (this.settings.autoIndex) {
-        void this.withIndexer((indexer) => indexer.run(false)).catch((error) => {
+        void this.withIndexer(async (indexer) => {
+          if (indexer.hasUsablePersistedIndex) {
+            indexer.scheduleReconciliation(
+              STARTUP_RECONCILIATION_DELAY_MS,
+            );
+            return;
+          }
+          await indexer.run(false);
+        }).catch((error) => {
           console.error('ZVec Hybrid Search indexing failed', error);
         });
       }

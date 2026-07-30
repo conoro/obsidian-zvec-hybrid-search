@@ -2,6 +2,26 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 0.2.7 — 2026-07-30
+
+### Fixed
+
+- Obsidian restarts now reuse a healthy saved index immediately instead of
+  making search wait for a foreground vault reconciliation.
+- One-millisecond filesystem timestamp rounding no longer causes unchanged
+  notes to be embedded again during a safety scan. Event-driven note updates
+  still use exact timestamps.
+- A saved index whose metadata and ZVec passage count disagree is detected and
+  rebuilt instead of being treated as ready.
+
+### Changed
+
+- The startup safety reconciliation begins quietly after a 30-second delay.
+  It remains incremental and does not replace the search status or redraw
+  existing results.
+- New installations and incompatible, incomplete, or missing indexes still
+  build immediately so an unsafe partial index is never presented as current.
+
 ## 0.2.6 — 2026-07-28
 
 ### Changed

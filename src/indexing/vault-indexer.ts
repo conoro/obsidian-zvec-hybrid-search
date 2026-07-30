@@ -13,13 +13,20 @@ import type {
   PersistedIndexState,
 } from '../types';
 import {
-  INDEX_SCHEMA_VERSION,
   ROOT_FOLDER,
 } from '../types';
 import { LocalEmbeddingService } from '../search/embeddings';
 import { chunkMarkdown, matchesGlob } from '../search/text';
 import { ZVecStore } from '../search/zvec-store';
 import { CHANGE_DEBOUNCE_MS } from './cadence';
+import {
+  expectedPassageCount,
+  indexStateIsCompatible,
+  newIndexState,
+  persistedIndexIsUsable,
+  RECONCILIATION_MTIME_TOLERANCE_MS,
+  storedFileMetadataHasChanged,
+} from './index-state';
 
 type StatusSink = (status: Partial<IndexStatus>) => void;
 
@@ -56,6 +63,7 @@ export class VaultIndexer {
   private disposed = false;
   private stateWriteGeneration = 0;
   private backgroundRun = false;
+  private persistedIndexUsable = false;
 
   constructor(
     private readonly app: App,
@@ -70,6 +78,10 @@ export class VaultIndexer {
     return this.backgroundRun && this.activeRun !== null;
   }
 
+  get hasUsablePersistedIndex(): boolean {
+    return this.persistedIndexUsable;
+  }
+
   async initialize(): Promise<void> {
     await withTimeout(
       fs.mkdir(dirname(this.statePath), { recursive: true }),
@@ -81,12 +93,31 @@ export class VaultIndexer {
     if (this.state && this.state.embeddingDtype === undefined) {
       this.state.embeddingDtype = this.settings().embeddingDtype;
     }
+    this.persistedIndexUsable = persistedIndexIsUsable(
+      this.state,
+      this.settings(),
+      this.store.stats.docCount,
+    );
+    if (
+      this.state
+      && indexStateIsCompatible(this.state, this.settings())
+      && !this.persistedIndexUsable
+    ) {
+      console.warn(
+        'ZVec Hybrid Search found an incomplete persisted index and will rebuild it',
+        {
+          expectedPassages: expectedPassageCount(this.state),
+          storedPassages: this.store.stats.docCount,
+        },
+      );
+      this.state = null;
+    }
     this.reconciliationTimer = window.setInterval(() => {
       if (this.settings().autoIndex) this.scheduleReconciliation();
     }, RECONCILIATION_INTERVAL_MS);
     this.emitStatus({
       phase: 'idle',
-      message: this.store.stats.docCount > 0
+      message: this.persistedIndexUsable
         ? `Index ready: ${this.store.stats.docCount.toLocaleString()} passages`
         : 'Index has not been built yet.',
       passagesIndexed: this.store.stats.docCount,
@@ -170,6 +201,7 @@ export class VaultIndexer {
     this.unoptimizedPassages = 0;
     await this.store.recreate();
     this.state = null;
+    this.persistedIndexUsable = false;
     try {
       await withTimeout(
         fs.unlink(this.statePath),
@@ -284,9 +316,10 @@ export class VaultIndexer {
       filesIndexed: 0,
     });
 
-    if (force || !this.state || !stateIsCompatible(this.state, settings)) {
+    if (force || !this.state || !indexStateIsCompatible(this.state, settings)) {
       await this.store.recreate();
-      this.state = newState(settings);
+      this.state = newIndexState(settings);
+      this.persistedIndexUsable = false;
       this.unoptimizedPassages = 0;
     }
 
@@ -300,7 +333,15 @@ export class VaultIndexer {
       if (file && shouldIndex(file, settings)) {
         files.push(file);
         livePaths.add(file.path);
-        if (fileHasChanged(file, currentState)) changedFiles.push(file);
+        if (
+          fileHasChanged(
+            file,
+            currentState,
+            RECONCILIATION_MTIME_TOLERANCE_MS,
+          )
+        ) {
+          changedFiles.push(file);
+        }
       }
       if (index > 0 && index % SCAN_YIELD_INTERVAL === 0) {
         await yieldToRenderer();
@@ -356,7 +397,7 @@ export class VaultIndexer {
 
   private async performIncrementalUpdate(paths: string[]): Promise<void> {
     const settings = this.settings();
-    if (!this.state || !stateIsCompatible(this.state, settings)) {
+    if (!this.state || !indexStateIsCompatible(this.state, settings)) {
       this.fullReconciliationRequested = true;
       return;
     }
@@ -474,6 +515,7 @@ export class VaultIndexer {
       }
     }
     const noteCount = Object.keys(state.files).length;
+    this.persistedIndexUsable = true;
     this.emitStatus({
       phase: 'ready',
       message: `Ready: ${this.store.stats.docCount.toLocaleString()} passages from ${noteCount.toLocaleString()} notes`,
@@ -664,43 +706,14 @@ export class VaultIndexer {
 function fileHasChanged(
   file: TFile,
   state: PersistedIndexState,
+  mtimeToleranceMs = 0,
 ): boolean {
-  const saved = state.files[file.path];
-  return !saved
-    || saved.mtime !== Math.trunc(file.stat.mtime)
-    || saved.size !== file.stat.size;
-}
-
-function newState(settings: HybridSearchSettings): PersistedIndexState {
-  return {
-    schemaVersion: INDEX_SCHEMA_VERSION,
-    embeddingBackend: settings.embeddingBackend,
-    embeddingModel: settings.embeddingModel,
-    embeddingDtype: settings.embeddingDtype,
-    chunkSize: settings.chunkSize,
-    chunkOverlap: settings.chunkOverlap,
-    indexedFolders: [...settings.indexedFolders].sort(),
-    excludePatterns: [...settings.excludePatterns].sort(),
-    files: {},
-  };
-}
-
-function stateIsCompatible(
-  state: PersistedIndexState,
-  settings: HybridSearchSettings,
-): boolean {
-  const expected = newState(settings);
-  return state.schemaVersion === expected.schemaVersion
-    && state.embeddingBackend === expected.embeddingBackend
-    && state.embeddingModel === expected.embeddingModel
-    && (
-      state.embeddingDtype === undefined
-      || state.embeddingDtype === expected.embeddingDtype
-    )
-    && state.chunkSize === expected.chunkSize
-    && state.chunkOverlap === expected.chunkOverlap
-    && JSON.stringify(state.indexedFolders) === JSON.stringify(expected.indexedFolders)
-    && JSON.stringify(state.excludePatterns) === JSON.stringify(expected.excludePatterns);
+  return storedFileMetadataHasChanged(
+    state.files[file.path],
+    file.stat.mtime,
+    file.stat.size,
+    mtimeToleranceMs,
+  );
 }
 
 function isPersistedIndexState(

@@ -164,8 +164,8 @@ Open **Settings → ZVec Hybrid Search**, change **Included notes** or
 
 Use this method if you do not want to use BRAT.
 
-1. Download `zvec-hybrid-search-0.2.6.zip` from the
-   [0.2.6 GitHub release](https://github.com/conoro/obsidian-zvec-hybrid-search/releases/tag/0.2.6).
+1. Download `zvec-hybrid-search-0.2.7.zip` from the
+   [0.2.7 GitHub release](https://github.com/conoro/obsidian-zvec-hybrid-search/releases/tag/0.2.7).
 2. Extract it into `.obsidian/plugins/zvec-hybrid-search/` inside the vault.
 3. Confirm that `main.js`, `manifest.json`, and `styles.css` are directly
    inside that folder.
