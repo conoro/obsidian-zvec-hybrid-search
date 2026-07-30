@@ -86,6 +86,7 @@ export interface PersistedIndexState {
   indexedFolders: string[];
   excludePatterns: string[];
   files: Record<string, IndexedFileState>;
+  pendingPaths?: string[];
 }
 
 export type IndexPhase =

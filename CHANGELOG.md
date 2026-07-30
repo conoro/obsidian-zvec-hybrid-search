@@ -2,6 +2,26 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 0.2.8 — 2026-07-30
+
+### Fixed
+
+- A small passage-count difference after an interrupted note update no longer
+  causes the entire collection to be recreated on the next Obsidian restart.
+- Note updates are now journalled before ZVec storage is changed. If Obsidian
+  closes during an update, only that note is recovered after restart.
+- Compatible non-empty indexes remain searchable while interrupted work is
+  repaired incrementally. Missing, empty, and incompatible indexes still
+  rebuild automatically.
+
+### Verification
+
+- Consecutive restarts against a 12,986-passage test vault became searchable
+  in approximately ten seconds and five seconds respectively.
+- A changed note was recovered in the background without disturbing active
+  results. The following unchanged restart performed no indexing or
+  optimisation.
+
 ## 0.2.7 — 2026-07-30
 
 ### Fixed

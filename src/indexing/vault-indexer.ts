@@ -20,8 +20,11 @@ import { chunkMarkdown, matchesGlob } from '../search/text';
 import { ZVecStore } from '../search/zvec-store';
 import { CHANGE_DEBOUNCE_MS } from './cadence';
 import {
-  expectedPassageCount,
+  clearIndexPathPending,
+  indexStateHasCountMismatch,
   indexStateIsCompatible,
+  indexStateNeedsPathRecovery,
+  markIndexPathPending,
   newIndexState,
   persistedIndexIsUsable,
   RECONCILIATION_MTIME_TOLERANCE_MS,
@@ -93,6 +96,9 @@ export class VaultIndexer {
     if (this.state && this.state.embeddingDtype === undefined) {
       this.state.embeddingDtype = this.settings().embeddingDtype;
     }
+    if (this.state && this.state.pendingPaths === undefined) {
+      this.state.pendingPaths = [];
+    }
     this.persistedIndexUsable = persistedIndexIsUsable(
       this.state,
       this.settings(),
@@ -101,16 +107,12 @@ export class VaultIndexer {
     if (
       this.state
       && indexStateIsCompatible(this.state, this.settings())
-      && !this.persistedIndexUsable
+      && this.persistedIndexUsable
+      && indexStateHasCountMismatch(this.state, this.store.stats.docCount)
     ) {
       console.warn(
-        'ZVec Hybrid Search found an incomplete persisted index and will rebuild it',
-        {
-          expectedPassages: expectedPassageCount(this.state),
-          storedPassages: this.store.stats.docCount,
-        },
+        'ZVec Hybrid Search found a passage-count difference; the saved index remains available and interrupted note updates will be recovered incrementally',
       );
-      this.state = null;
     }
     this.reconciliationTimer = window.setInterval(() => {
       if (this.settings().autoIndex) this.scheduleReconciliation();
@@ -334,6 +336,7 @@ export class VaultIndexer {
         files.push(file);
         livePaths.add(file.path);
         if (
+          indexStateNeedsPathRecovery(currentState, file.path) ||
           fileHasChanged(
             file,
             currentState,
@@ -420,7 +423,10 @@ export class VaultIndexer {
         abstractFile instanceof TFile
         && shouldIndex(abstractFile, settings)
       ) {
-        if (fileHasChanged(abstractFile, currentState)) {
+        if (
+          indexStateNeedsPathRecovery(currentState, path)
+          || fileHasChanged(abstractFile, currentState)
+        ) {
           affectedPassages += await this.updateFile(
             abstractFile,
             settings,
@@ -429,7 +435,10 @@ export class VaultIndexer {
           filesIndexed += 1;
           await this.writeState(currentState);
         }
-      } else if (currentState.files[path]) {
+      } else if (
+        currentState.files[path]
+        || indexStateNeedsPathRecovery(currentState, path)
+      ) {
         affectedPassages += await this.removePath(path, currentState);
       }
       this.emitStatus({
@@ -472,6 +481,7 @@ export class VaultIndexer {
       phase: 'writing',
       message: `Writing ${snapshot.path}`,
     });
+    await this.markPathPending(state, snapshot.path);
     const previousPassages = state.files[snapshot.path]?.passageIds.length ?? 0;
     await this.store.deletePath(snapshot.path);
     for (let offset = 0; offset < snapshot.passages.length; offset += 64) {
@@ -485,6 +495,7 @@ export class VaultIndexer {
       size: snapshot.size,
       passageIds: snapshot.passages.map((passage) => passage.id),
     };
+    clearIndexPathPending(state, snapshot.path);
     return Math.max(previousPassages, snapshot.passages.length);
   }
 
@@ -493,9 +504,19 @@ export class VaultIndexer {
     state: PersistedIndexState,
   ): Promise<number> {
     const passageCount = state.files[path]?.passageIds.length ?? 0;
+    await this.markPathPending(state, path);
     await this.store.deletePath(path);
     delete state.files[path];
+    clearIndexPathPending(state, path);
     return passageCount;
+  }
+
+  private async markPathPending(
+    state: PersistedIndexState,
+    path: string,
+  ): Promise<void> {
+    if (!markIndexPathPending(state, path)) return;
+    await this.writeState(state);
   }
 
   private async finishUpdate(
@@ -741,6 +762,12 @@ function isPersistedIndexState(
     && Number.isFinite(entry.size)
     && Array.isArray(entry.passageIds)
     && entry.passageIds.every((id) => typeof id === 'string'),
+  ) && (
+    value.pendingPaths === undefined
+    || (
+      Array.isArray(value.pendingPaths)
+      && value.pendingPaths.every((path) => typeof path === 'string')
+    )
   );
 }
 

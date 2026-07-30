@@ -20,6 +20,7 @@ export function newIndexState(
     indexedFolders: [...settings.indexedFolders].sort(),
     excludePatterns: [...settings.excludePatterns].sort(),
     files: {},
+    pendingPaths: [],
   };
 }
 
@@ -53,9 +54,47 @@ export function persistedIndexIsUsable(
   settings: HybridSearchSettings,
   collectionDocumentCount: number,
 ): boolean {
-  return state !== null
-    && indexStateIsCompatible(state, settings)
-    && expectedPassageCount(state) === collectionDocumentCount;
+  if (state === null || !indexStateIsCompatible(state, settings)) {
+    return false;
+  }
+  const expectedDocuments = expectedPassageCount(state);
+  return expectedDocuments === 0
+    ? collectionDocumentCount === 0
+    : collectionDocumentCount > 0;
+}
+
+export function indexStateHasCountMismatch(
+  state: PersistedIndexState,
+  collectionDocumentCount: number,
+): boolean {
+  return expectedPassageCount(state) !== collectionDocumentCount;
+}
+
+export function indexStateNeedsPathRecovery(
+  state: PersistedIndexState,
+  path: string,
+): boolean {
+  return state.pendingPaths?.includes(path) ?? false;
+}
+
+export function markIndexPathPending(
+  state: PersistedIndexState,
+  path: string,
+): boolean {
+  state.pendingPaths ??= [];
+  if (state.pendingPaths.includes(path)) return false;
+  state.pendingPaths.push(path);
+  return true;
+}
+
+export function clearIndexPathPending(
+  state: PersistedIndexState,
+  path: string,
+): void {
+  if (!state.pendingPaths) return;
+  state.pendingPaths = state.pendingPaths.filter(
+    (pendingPath) => pendingPath !== path,
+  );
 }
 
 export function storedFileMetadataHasChanged(

@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  clearIndexPathPending,
   expectedPassageCount,
+  indexStateHasCountMismatch,
+  indexStateNeedsPathRecovery,
+  markIndexPathPending,
   newIndexState,
   persistedIndexIsUsable,
   RECONCILIATION_MTIME_TOLERANCE_MS,
@@ -22,15 +26,26 @@ test('a compatible persisted index is usable when every passage is present', () 
   );
 });
 
-test('a persisted index is rejected when its collection is incomplete', () => {
+test('a non-empty persisted index remains available across count drift', () => {
   const state = stateWithPassages();
 
   assert.equal(
     persistedIndexIsUsable(state, DEFAULT_SETTINGS, 2),
+    true,
+  );
+  assert.equal(indexStateHasCountMismatch(state, 2), true);
+  assert.equal(indexStateHasCountMismatch(state, 3), false);
+});
+
+test('missing state and an unexpectedly empty collection require a rebuild', () => {
+  const state = stateWithPassages();
+
+  assert.equal(
+    persistedIndexIsUsable(null, DEFAULT_SETTINGS, 0),
     false,
   );
   assert.equal(
-    persistedIndexIsUsable(null, DEFAULT_SETTINGS, 0),
+    persistedIndexIsUsable(state, DEFAULT_SETTINGS, 0),
     false,
   );
 });
@@ -42,6 +57,7 @@ test('an empty compatible persisted index remains usable', () => {
     persistedIndexIsUsable(state, DEFAULT_SETTINGS, 0),
     true,
   );
+  assert.deepEqual(state.pendingPaths, []);
 });
 
 test('changed indexing settings invalidate the persisted index', () => {
@@ -55,6 +71,19 @@ test('changed indexing settings invalidate the persisted index', () => {
     ),
     false,
   );
+});
+
+test('interrupted note updates remain marked for incremental recovery', () => {
+  const state = stateWithPassages();
+
+  assert.equal(markIndexPathPending(state, 'First.md'), true);
+  assert.equal(markIndexPathPending(state, 'First.md'), false);
+  assert.equal(indexStateNeedsPathRecovery(state, 'First.md'), true);
+  assert.deepEqual(state.pendingPaths, ['First.md']);
+
+  clearIndexPathPending(state, 'First.md');
+  assert.equal(indexStateNeedsPathRecovery(state, 'First.md'), false);
+  assert.deepEqual(state.pendingPaths, []);
 });
 
 test('startup reconciliation ignores one-millisecond timestamp jitter', () => {
