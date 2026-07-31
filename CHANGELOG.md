@@ -2,6 +2,37 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 0.2.9 — 2026-07-31
+
+### Fixed
+
+- Generated runtime, model, ZVec collection, and index-state files now live in
+  the operating system's local application-data directory. Dropbox, iCloud,
+  OneDrive, and other vault sync services no longer manage the native database.
+- ZVec and embedding child processes now close when Obsidian disconnects or
+  exits. A lost parent process can no longer leave background indexing running
+  and consuming CPU.
+- The indexer is no longer visible to startup callbacks until its saved state
+  has loaded. This closes a race that could recreate a healthy collection on
+  every Obsidian launch.
+- Failure to open an existing collection is now contained and reported. The
+  plugin never replaces that collection with an empty one after an open error.
+
+### Changed
+
+- Existing generated data is copied once from the older in-vault location.
+  The legacy copy is left untouched as a recovery fallback.
+- Startup storage migration is staged and marked complete atomically. An
+  interrupted copy is discarded without modifying either complete copy.
+
+### Verification
+
+- Type checking, production build, and 42 automated tests cover local storage,
+  interrupted migration, child-process shutdown, open failure containment, and
+  initialization ordering.
+- Two full Obsidian quit-and-relaunch tests reused all 13,019 passages from
+  1,113 notes, including after the delayed startup reconciliation.
+
 ## 0.2.8 — 2026-07-30
 
 ### Fixed

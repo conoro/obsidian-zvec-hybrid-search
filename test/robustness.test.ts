@@ -27,6 +27,11 @@ import {
   safeZipEntryPath,
 } from '../src/runtime/runtime-manager';
 import {
+  localDataDirectory,
+  prepareLocalDataDirectory,
+} from '../src/runtime/data-directory';
+import { initializeThenPublish } from '../src/runtime/initialization';
+import {
   normalizeSettings,
   parseTopLevelFolders,
 } from '../src/settings';
@@ -110,6 +115,84 @@ test('runtime platform selection covers every published desktop target', () => {
     runtimeAssetName('0.2.0', 'linux-arm64'),
     'zvec-runtime-0.2.0-linux-arm64.zip',
   );
+});
+
+test('generated search data uses an opaque machine-local directory', () => {
+  const vaultPath = '/Volumes/External/Dropbox/Obsidian';
+  const macPath = localDataDirectory(vaultPath, {
+    platform: 'darwin',
+    homeDirectory: '/Users/example',
+    environment: {},
+  });
+  const windowsPath = localDataDirectory(vaultPath, {
+    platform: 'win32',
+    homeDirectory: 'C:\\Users\\example',
+    environment: { LOCALAPPDATA: 'C:\\Users\\example\\AppData\\Local' },
+  });
+  const linuxPath = localDataDirectory(vaultPath, {
+    platform: 'linux',
+    homeDirectory: '/home/example',
+    environment: { XDG_DATA_HOME: '/home/example/.local/share' },
+  });
+
+  assert.match(
+    macPath,
+    /^\/Users\/example\/Library\/Application Support\/zvec-hybrid-search\/vaults\/[a-f0-9]{20}$/u,
+  );
+  assert.match(windowsPath, /zvec-hybrid-search[\\/]vaults[\\/][a-f0-9]{20}$/u);
+  assert.match(linuxPath, /zvec-hybrid-search\/vaults\/[a-f0-9]{20}$/u);
+  for (const path of [macPath, windowsPath, linuxPath]) {
+    assert.equal(path.includes('Dropbox'), false);
+    assert.equal(path.includes('Obsidian'), false);
+  }
+});
+
+test('legacy generated data is copied once into local storage', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-data-migration-'));
+  const legacy = join(directory, 'legacy');
+  const target = join(directory, 'local', 'vault-key');
+  try {
+    await mkdir(join(legacy, 'collection'), { recursive: true });
+    await writeFile(join(legacy, 'index-state.json'), '{"files":{}}');
+    await writeFile(join(legacy, 'collection', 'manifest.0'), 'collection');
+
+    const first = await prepareLocalDataDirectory(target, legacy);
+    assert.equal(first.migrated, true);
+    assert.equal(
+      await readFile(join(target, 'collection', 'manifest.0'), 'utf8'),
+      'collection',
+    );
+
+    await writeFile(join(legacy, 'index-state.json'), 'changed legacy data');
+    const second = await prepareLocalDataDirectory(target, legacy);
+    assert.equal(second.migrated, false);
+    assert.equal(
+      await readFile(join(target, 'index-state.json'), 'utf8'),
+      '{"files":{}}',
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('runtime components remain private until initialization completes', async () => {
+  let finishInitialization: (() => void) | undefined;
+  let published = false;
+  const initialization = new Promise<void>((resolve) => {
+    finishInitialization = resolve;
+  });
+  const startup = initializeThenPublish(
+    () => initialization,
+    () => {
+      published = true;
+    },
+  );
+
+  await Promise.resolve();
+  assert.equal(published, false);
+  finishInitialization?.();
+  await startup;
+  assert.equal(published, true);
 });
 
 test('runtime downloads accept only the old and new repository paths', () => {
@@ -330,6 +413,28 @@ test('unavailable collection storage fails locally instead of blocking', async (
         && error.code === 'RUNTIME_UNAVAILABLE',
     );
     assert.ok(performance.now() - started < 5000);
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('an existing invalid collection is never replaced after an open failure', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-existing-collection-'));
+  const collection = join(directory, 'collection');
+  const sentinel = join(collection, 'do-not-replace.txt');
+  await mkdir(collection);
+  await writeFile(sentinel, 'existing collection');
+  const store = new ZVecStore(collection);
+  try {
+    await assert.rejects(
+      store.open(true),
+      (error: unknown) =>
+        error instanceof PluginRuntimeError
+        && error.code === 'RUNTIME_UNAVAILABLE'
+        && error.message.includes('left untouched'),
+    );
+    assert.equal(await readFile(sentinel, 'utf8'), 'existing collection');
   } finally {
     await store.close();
     await rm(directory, { recursive: true, force: true });

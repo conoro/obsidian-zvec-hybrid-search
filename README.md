@@ -7,7 +7,7 @@ is no separate server or command-line setup.
 Inside Obsidian, the plugin is shown as **ZVec Hybrid Search**.
 
 > [!IMPORTANT]
-> Version 0.2.6 is a public beta. It is not yet available in Obsidian's
+> Version 0.2.9 is a public beta. It is not yet available in Obsidian's
 > Community Plugin directory.
 
 ## What it does
@@ -20,6 +20,8 @@ Inside Obsidian, the plugin is shown as **ZVec Hybrid Search**.
 - Lets you exclude folders that you do not want to search.
 - Sorts results by relevance, date, or title.
 - Keeps note text and the search index on your computer.
+- Stores generated search data outside the vault, avoiding sync conflicts with
+  Dropbox, iCloud, OneDrive, and similar services.
 
 ## Requirements
 
@@ -69,7 +71,7 @@ the command palette. The sidebar shows its progress. You can search when its
 status changes to **Ready**.
 
 The first index can take several minutes for a large vault. Later starts reuse
-the downloads and update only notes that have changed.
+the local index immediately and update only notes that have changed.
 
 ## Search your vault
 
@@ -126,6 +128,9 @@ backend requires **Save and rebuild**.
 
 - Note text, the search index, settings, and the language model remain on your
   computer.
+- Generated search data is stored in the operating system's local application
+  data folder, outside the vault. Sync services do not upload or merge the
+  native database.
 - Search and indexing do not send vault content to an online service.
 - The plugin has no telemetry or analytics.
 - The first installation downloads the local search component from this
@@ -164,8 +169,8 @@ Open **Settings → ZVec Hybrid Search**, change **Included notes** or
 
 Use this method if you do not want to use BRAT.
 
-1. Download `zvec-hybrid-search-0.2.8.zip` from the
-   [0.2.8 GitHub release](https://github.com/conoro/obsidian-zvec-hybrid-search/releases/tag/0.2.8).
+1. Download `zvec-hybrid-search-0.2.9.zip` from the
+   [0.2.9 GitHub release](https://github.com/conoro/obsidian-zvec-hybrid-search/releases/tag/0.2.9).
 2. Extract it into `.obsidian/plugins/zvec-hybrid-search/` inside the vault.
 3. Confirm that `main.js`, `manifest.json`, and `styles.css` are directly
    inside that folder.
@@ -180,9 +185,19 @@ existing index and downloaded model are retained.
 ## Uninstalling
 
 Disable the plugin in Obsidian, then remove the
-`.obsidian/plugins/zvec-hybrid-search` folder from the vault. This also removes
-the local search index and downloaded model. Your notes are not changed or
-deleted.
+`.obsidian/plugins/zvec-hybrid-search` folder from the vault. Your notes are not
+changed or deleted.
+
+Generated search data is kept separately so reinstalling does not require
+another full index. To remove it as well, delete the vault's opaque folder
+inside:
+
+- macOS: `~/Library/Application Support/zvec-hybrid-search/vaults/`
+- Windows: `%LOCALAPPDATA%\zvec-hybrid-search\vaults\`
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/zvec-hybrid-search/vaults/`
+
+If there is more than one folder there, remove only the one belonging to the
+uninstalled vault. It is safe to leave these generated files in place.
 
 ## Support and security
 

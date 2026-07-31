@@ -1,6 +1,6 @@
 {
   "name": "obsidian-zvec-hybrid-search",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Local hybrid search for Obsidian powered by ZVec BM25 and semantic embeddings.",
   "private": true,
   "type": "module",

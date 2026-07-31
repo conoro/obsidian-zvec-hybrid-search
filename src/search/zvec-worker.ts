@@ -10,7 +10,10 @@ export function zvecWorkerEntrypoint(): void {
     } | null;
     workerData: WorkerData | null;
   };
-  const { mkdirSync } = require('node:fs') as typeof import('node:fs');
+  const {
+    existsSync,
+    mkdirSync,
+  } = require('node:fs') as typeof import('node:fs');
   const { createRequire } = require('node:module') as typeof import('node:module');
   const { dirname, join } = require('node:path') as typeof import('node:path');
 
@@ -45,6 +48,15 @@ export function zvecWorkerEntrypoint(): void {
   let collection: import('@zvec/zvec').ZVecCollection | null = null;
   let api: typeof import('@zvec/zvec') | null = null;
   let queue = Promise.resolve();
+  if (childData) {
+    process.once('disconnect', () => {
+      try {
+        collection?.closeSync();
+      } finally {
+        process.exit(0);
+      }
+    });
+  }
 
   function getApi(): typeof import('@zvec/zvec') {
     if (api) return api;
@@ -114,9 +126,18 @@ export function zvecWorkerEntrypoint(): void {
       if (!collection) {
         const zvec = getApi();
         mkdirSync(dirname(workerData.collectionPath), { recursive: true });
+        const existingCollection = existsSync(workerData.collectionPath);
         try {
           collection = zvec.ZVecOpen(workerData.collectionPath);
-        } catch {
+        } catch (error) {
+          if (existingCollection) {
+            const message = error instanceof Error
+              ? error.message
+              : String(error);
+            throw new Error(
+              `The existing ZVec collection could not be opened and was left untouched: ${message}`,
+            );
+          }
           collection = zvec.ZVecCreateAndOpen(
             workerData.collectionPath,
             createSchema(zvec),

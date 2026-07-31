@@ -62,7 +62,9 @@ export class WorkerRpcClient {
     this.transport = this.childProcess
       ? createElectronNodeChild(source, workerData, nodeExecutable)
       : new Worker(source, { eval: true, workerData });
-    this.transport.unref();
+    if (this.transport instanceof Worker) {
+      this.transport.unref();
+    }
     this.transport.on('message', (message: unknown) => this.handleMessage(message));
     this.transport.on('error', (error) => this.fail(
       new PluginRuntimeError(

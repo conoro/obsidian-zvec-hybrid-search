@@ -15,6 +15,11 @@ import {
   withTimeout,
 } from './src/runtime/safety';
 import { RuntimeManager } from './src/runtime/runtime-manager';
+import {
+  localDataDirectory,
+  prepareLocalDataDirectory,
+} from './src/runtime/data-directory';
+import { initializeThenPublish } from './src/runtime/initialization';
 import { LocalEmbeddingService } from './src/search/embeddings';
 import { HybridSearchEngine } from './src/search/engine';
 import { ZVecStore } from './src/search/zvec-store';
@@ -276,11 +281,29 @@ export default class ZVecHybridSearchPlugin
     if (!pluginDirectory) {
       throw new Error('Obsidian did not provide the plugin directory.');
     }
-    const dataDirectory = join(
+    const legacyDataDirectory = join(
       adapter.getBasePath(),
       pluginDirectory,
       'search-data',
     );
+    const targetDataDirectory = localDataDirectory(adapter.getBasePath());
+    this.updateStatus({
+      phase: 'loading',
+      message: 'Preparing local search storage…',
+      background: false,
+    });
+    const {
+      directory: dataDirectory,
+      migrated,
+    } = await prepareLocalDataDirectory(
+      targetDataDirectory,
+      legacyDataDirectory,
+    );
+    if (migrated) {
+      console.info(
+        'ZVec Hybrid Search copied existing generated data out of the synced vault',
+      );
+    }
     this.runtimeManager ??= new RuntimeManager(
       dataDirectory,
       this.manifest.version,
@@ -303,6 +326,8 @@ export default class ZVecHybridSearchPlugin
     this.indexer = null;
     this.engine = null;
     if (previousIndexer) await previousIndexer.stop();
+    this.store = null;
+    this.embeddings = null;
     const store = new ZVecStore(
       join(dataDirectory, 'collection'),
       runtime.rootDirectory,
@@ -334,16 +359,29 @@ export default class ZVecHybridSearchPlugin
       embeddings,
       () => this.settings,
     );
-    this.store = store;
-    this.embeddings = embeddings;
-    this.indexer = indexer;
-    this.engine = engine;
     try {
-      await indexer.initialize();
+      await initializeThenPublish(
+        () => indexer.initialize(),
+        () => {
+          if (this.isUnloading) {
+            throw new PluginRuntimeError(
+              'PLUGIN_STOPPED',
+              'ZVec Hybrid Search stopped during index startup.',
+            );
+          }
+          // Vault and layout events may arrive while initialize() is reading
+          // saved state. Publish every runtime component only after that read.
+          this.store = store;
+          this.embeddings = embeddings;
+          this.indexer = indexer;
+          this.engine = engine;
+        },
+      );
     } catch (error) {
+      await indexer.stop().catch(() => undefined);
       this.updateStatus({
         phase: 'error',
-        message: 'ZVec is paused; vault storage is unavailable.',
+        message: 'ZVec is paused; local search storage is unavailable.',
         error: errorMessage(error),
         completed: 0,
         total: 0,
@@ -352,6 +390,7 @@ export default class ZVecHybridSearchPlugin
         'ZVec Hybrid Search started in a contained unavailable state',
         error,
       );
+      throw error;
     }
   }
 

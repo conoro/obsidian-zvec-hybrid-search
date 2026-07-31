@@ -2,12 +2,16 @@
 
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -55,9 +59,52 @@ for (const file of ['main.js', 'manifest.json', 'styles.css']) {
 
 const projectPackage = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
 const platformKey = runtimePlatformKey();
+const legacyDataTarget = join(target, 'search-data');
+const vaultKey = createHash('sha256').update(vault).digest('hex').slice(0, 20);
+const applicationData = process.platform === 'darwin'
+  ? join(homedir(), 'Library', 'Application Support')
+  : process.platform === 'win32'
+    ? (
+      process.env.LOCALAPPDATA
+      ?? process.env.APPDATA
+      ?? join(homedir(), 'AppData', 'Local')
+    )
+    : (
+      process.env.XDG_DATA_HOME
+      ?? join(homedir(), '.local', 'share')
+    );
+const dataTarget = join(
+  applicationData,
+  'zvec-hybrid-search',
+  'vaults',
+  vaultKey,
+);
+if (!existsSync(dataTarget)) {
+  mkdirSync(dirname(dataTarget), { recursive: true });
+  const stagingTarget = `${dataTarget}.migrating-${process.pid}-${Date.now()}`;
+  try {
+    if (existsSync(legacyDataTarget)) {
+      cpSync(legacyDataTarget, stagingTarget, { recursive: true });
+    } else {
+      mkdirSync(stagingTarget, { recursive: true });
+    }
+    writeFileSync(
+      join(stagingTarget, '.storage-ready.json'),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        migratedLegacyData: existsSync(legacyDataTarget),
+        createdAt: new Date().toISOString(),
+      }, null, 2)}\n`,
+      'utf8',
+    );
+    renameSync(stagingTarget, dataTarget);
+  } catch (error) {
+    rmSync(stagingTarget, { recursive: true, force: true });
+    throw error;
+  }
+}
 const runtimeTarget = join(
-  target,
-  'search-data',
+  dataTarget,
   'runtime',
   projectPackage.version,
   platformKey,
@@ -103,5 +150,6 @@ rmSync(join(target, 'package.json'), { force: true });
 rmSync(join(target, 'package-lock.json'), { force: true });
 
 console.log(`Installed ZVec Hybrid Search to ${target}`);
+console.log(`Installed generated search data to ${dataTarget}`);
 console.log('The private Node runtime is included; no system Node is used by Obsidian.');
 console.log('Enable or reload it in Obsidian → Settings → Community plugins.');

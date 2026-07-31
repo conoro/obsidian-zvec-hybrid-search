@@ -35,7 +35,9 @@ OBSIDIAN_VAULT="/path/to/Vault" npm run install:local
 
 The installer copies the production plugin files and creates the same private,
 self-contained runtime layout used by releases. Obsidian does not use the
-developer's system Node installation after that.
+developer's system Node installation after that. Runtime, model, collection,
+and index-state files live in the operating system's local application-data
+directory rather than inside the vault.
 
 ## Commands
 
@@ -58,6 +60,8 @@ release assets, not source commits.
 - `src/indexing/` contains incremental indexing and reconciliation.
 - `src/search/` contains chunking, embeddings, ZVec storage, and ranking.
 - `src/runtime/` contains timeouts and isolated worker-process management.
+- `src/runtime/data-directory.ts` owns the machine-local per-vault storage
+  location and one-time migration from the older in-vault layout.
 - `src/ui/` contains the sidebar and plugin settings.
 - `test/` contains synthetic-vault and failure-containment tests.
 

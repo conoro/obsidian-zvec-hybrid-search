@@ -26,7 +26,7 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
       .setName('ZVec Hybrid Search')
       .setHeading();
     containerEl.createEl('p', {
-      text: 'Vault text, embeddings, and index files stay local. The verified desktop runtime and semantic model are downloaded once and cached locally.',
+      text: 'Search stays on this computer. Generated index, model, and runtime files are stored outside the vault so Dropbox and other sync services do not manage the native database.',
       cls: 'setting-item-description',
     });
 

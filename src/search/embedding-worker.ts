@@ -51,6 +51,9 @@ export function embeddingWorkerEntrypoint(): void {
   let extractor: Extractor | null = null;
   let loading: Promise<Extractor> | null = null;
   let queue = Promise.resolve();
+  if (childData) {
+    process.once('disconnect', () => process.exit(0));
+  }
 
   function addFeature(
     vector: Float32Array,
