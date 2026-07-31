@@ -2,6 +2,25 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 0.2.10 — 2026-07-31
+
+### Fixed
+
+- Automatic indexing no longer calls ZVec's optional collection optimisation.
+  Its FTS reducer could reject valid incremental segments with `source postings
+  is not BitPacked`, leaving a healthy searchable index behind a red failure
+  status.
+- Native stderr is retained when a worker returns an empty error message, so
+  useful diagnostics are no longer replaced by `Unknown worker error`.
+- Sidebar errors now remain visible until indexing completes successfully and
+  include a **Copy error** button. Error details can also be selected directly.
+
+### Verification
+
+- Search integration tests confirm that ZVec upserts, deletes, and queries work
+  without an explicit optimisation pass.
+- Type checking, production build, and 43 automated tests pass.
+
 ## 0.2.9 — 2026-07-31
 
 ### Fixed

@@ -374,6 +374,35 @@ test('Electron-style child-process isolation supports request and shutdown', asy
   }
 });
 
+test('native stderr is retained when a worker returns an empty error', async () => {
+  const client = new WorkerRpcClient(
+    `
+      process.on('message', (request) => {
+        process.stderr.write('native reducer detail\\n');
+        setTimeout(() => process.send({
+          id: request.id,
+          ok: false,
+          error: { message: '' },
+        }), 20);
+      });
+    `,
+    {},
+    () => undefined,
+    undefined,
+    true,
+  );
+  try {
+    await assert.rejects(
+      client.request('optimize', {}, 1000),
+      (error: unknown) =>
+        error instanceof PluginRuntimeError
+        && error.message.includes('native reducer detail'),
+    );
+  } finally {
+    await client.stop();
+  }
+});
+
 test('ZVec opens and closes through Electron-style child isolation', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-child-store-'));
   const client = new WorkerRpcClient(

@@ -29,14 +29,17 @@ export class HybridSearchView extends ItemView {
   private sort: SortOrder;
   private grouping: ResultGrouping;
   private statusEl: HTMLElement | null = null;
+  private errorEl: HTMLElement | null = null;
   private progressEl: HTMLProgressElement | null = null;
   private cancelButtonEl: HTMLButtonElement | null = null;
+  private copyErrorButtonEl: HTMLButtonElement | null = null;
   private resultsEl: HTMLElement | null = null;
   private summaryEl: HTMLElement | null = null;
   private searchButtonEl: HTMLButtonElement | null = null;
   private clearButtonEl: HTMLButtonElement | null = null;
   private loadMoreButtonEl: HTMLButtonElement | null = null;
   private activeResponse: SearchResponse | null = null;
+  private lastErrorText: string | null = null;
   private readonly searchSession = new SearchSession();
   private readonly resultPager = new ResultPager<SearchResult>();
 
@@ -76,10 +79,13 @@ export class HybridSearchView extends ItemView {
     this.clearButtonEl = null;
     this.loadMoreButtonEl = null;
     this.activeResponse = null;
+    this.lastErrorText = null;
     this.resultPager.clear();
     this.statusEl = null;
+    this.errorEl = null;
     this.progressEl = null;
     this.cancelButtonEl = null;
+    this.copyErrorButtonEl = null;
     this.resultsEl = null;
     this.summaryEl = null;
   }
@@ -105,10 +111,19 @@ export class HybridSearchView extends ItemView {
       this.cancelButtonEl?.setAttribute('hidden', '');
       return;
     }
-    const message = status.error
-      ? `${status.message} ${status.error}`
-      : status.message;
-    if (this.statusEl.textContent !== message) this.statusEl.setText(message);
+    if (status.error) {
+      this.lastErrorText = `${status.message}\n${status.error}`;
+    } else if (status.phase === 'ready' || status.phase === 'idle') {
+      this.lastErrorText = null;
+    }
+    if (this.statusEl.textContent !== status.message) {
+      this.statusEl.setText(status.message);
+    }
+    if (this.errorEl) {
+      this.errorEl.setText(this.lastErrorText ?? '');
+      this.errorEl.toggleAttribute('hidden', !this.lastErrorText);
+    }
+    this.copyErrorButtonEl?.toggleAttribute('hidden', !this.lastErrorText);
     this.progressEl.toggleAttribute('hidden', !isActive);
     if (status.total > 0) {
       this.progressEl.max = status.total;
@@ -229,9 +244,29 @@ export class HybridSearchView extends ItemView {
     const indexBar = container.createDiv({ cls: 'zvec-index-bar' });
     const statusWrap = indexBar.createDiv({ cls: 'zvec-index-state' });
     this.statusEl = statusWrap.createDiv({ cls: 'zvec-index-message' });
+    this.errorEl = statusWrap.createDiv({
+      cls: 'zvec-index-error',
+      attr: { hidden: '' },
+    });
     this.progressEl = statusWrap.createEl('progress');
     this.progressEl.hidden = true;
     const actionWrap = indexBar.createDiv({ cls: 'zvec-index-actions' });
+    this.copyErrorButtonEl = actionWrap.createEl('button', {
+      text: 'Copy error',
+      attr: {
+        hidden: '',
+        'aria-label': 'Copy indexing error details',
+      },
+    });
+    this.copyErrorButtonEl.addEventListener('click', () => {
+      if (!this.lastErrorText) return;
+      void navigator.clipboard.writeText(this.lastErrorText)
+        .then(() => new Notice('ZVec error details copied.', 2500))
+        .catch((error) => {
+          console.error('Could not copy ZVec error details', error);
+          new Notice('Could not copy ZVec error details.', 4000);
+        });
+    });
     this.cancelButtonEl = actionWrap.createEl('button', {
       text: 'Cancel',
       attr: { 'aria-label': 'Cancel indexing' },

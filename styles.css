@@ -84,8 +84,22 @@
 }
 
 .zvec-index-message.is-error,
+.zvec-index-error,
 .zvec-search-empty.is-error {
   color: var(--text-error);
+}
+
+.zvec-index-error {
+  margin-top: 4px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  overflow-wrap: anywhere;
+  user-select: text;
+  white-space: pre-wrap;
+}
+
+.zvec-index-error[hidden] {
+  display: none;
 }
 
 .zvec-index-state progress {

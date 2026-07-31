@@ -46,6 +46,7 @@ export class WorkerRpcClient {
   private readonly transport: Worker | ChildProcess;
   private readonly childProcess: boolean;
   private readonly pending = new Map<number, PendingRequest>();
+  private recentStderr = '';
   private nextRequestId = 1;
   private stopped = false;
   private failed = false;
@@ -64,6 +65,11 @@ export class WorkerRpcClient {
       : new Worker(source, { eval: true, workerData });
     if (this.transport instanceof Worker) {
       this.transport.unref();
+    } else {
+      this.transport.stderr?.setEncoding('utf8');
+      this.transport.stderr?.on('data', (chunk: string) => {
+        this.recentStderr = `${this.recentStderr}${chunk}`.slice(-8000);
+      });
     }
     this.transport.on('message', (message: unknown) => this.handleMessage(message));
     this.transport.on('error', (error) => this.fail(
@@ -74,6 +80,12 @@ export class WorkerRpcClient {
       ),
     ));
     this.transport.on('exit', (code, signal) => {
+      if (!this.stopped && (code || signal) && this.recentStderr) {
+        console.error(
+          'ZVec Hybrid Search isolated process stderr',
+          this.recentStderr,
+        );
+      }
       if (!this.stopped) {
         this.fail(new PluginRuntimeError(
           'WORKER_ERROR',
@@ -173,7 +185,9 @@ export class WorkerRpcClient {
       return;
     }
     const failure = message as unknown as WorkerFailure;
-    const workerMessage = failure.error?.message || 'Unknown worker error';
+    const workerMessage = failure.error?.message?.trim()
+      || this.recentStderr.trim()
+      || 'The native worker returned no error details.';
     pending.reject(new PluginRuntimeError(
       operationErrorCode(pending.method),
       `ZVec ${pending.method} failed: ${workerMessage}`,
@@ -287,16 +301,6 @@ function createElectronNodeChild(
       windowsHide: true,
     },
   );
-  let stderr = '';
-  child.stderr?.setEncoding('utf8');
-  child.stderr?.on('data', (chunk: string) => {
-    stderr = `${stderr}${chunk}`.slice(-8000);
-  });
-  child.once('exit', (code, signal) => {
-    if ((code || signal) && stderr) {
-      console.error('ZVec Hybrid Search isolated process stderr', stderr);
-    }
-  });
   return child;
 }
 

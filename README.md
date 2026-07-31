@@ -7,7 +7,7 @@ is no separate server or command-line setup.
 Inside Obsidian, the plugin is shown as **ZVec Hybrid Search**.
 
 > [!IMPORTANT]
-> Version 0.2.9 is a public beta. It is not yet available in Obsidian's
+> Version 0.2.10 is a public beta. It is not yet available in Obsidian's
 > Community Plugin directory.
 
 ## What it does
@@ -169,8 +169,8 @@ Open **Settings → ZVec Hybrid Search**, change **Included notes** or
 
 Use this method if you do not want to use BRAT.
 
-1. Download `zvec-hybrid-search-0.2.9.zip` from the
-   [0.2.9 GitHub release](https://github.com/conoro/obsidian-zvec-hybrid-search/releases/tag/0.2.9).
+1. Download `zvec-hybrid-search-0.2.10.zip` from the
+   [0.2.10 GitHub release](https://github.com/conoro/obsidian-zvec-hybrid-search/releases/tag/0.2.10).
 2. Extract it into `.obsidian/plugins/zvec-hybrid-search/` inside the vault.
 3. Confirm that `main.js`, `manifest.json`, and `styles.css` are directly
    inside that folder.

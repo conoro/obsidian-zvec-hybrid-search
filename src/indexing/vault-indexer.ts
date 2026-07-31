@@ -33,8 +33,6 @@ import {
 
 type StatusSink = (status: Partial<IndexStatus>) => void;
 
-const OPTIMIZE_IDLE_MS = 45_000;
-const OPTIMIZE_PASSAGE_THRESHOLD = 100;
 const RECONCILIATION_INTERVAL_MS = 60 * 60_000;
 const FILE_IO_TIMEOUT_MS = 15_000;
 const STATE_IO_TIMEOUT_MS = 5000;
@@ -55,13 +53,10 @@ export class VaultIndexer {
   private activeRun: Promise<void> | null = null;
   private cancelRequested = false;
   private scheduledTimer: number | null = null;
-  private optimizationTimer: number | null = null;
   private reconciliationTimer: number | null = null;
   private readonly pendingPaths = new Set<string>();
   private fullReconciliationRequested = false;
   private forceRebuildRequested = false;
-  private optimizeRequested = false;
-  private unoptimizedPassages = 0;
   private recoveryRequested = false;
   private disposed = false;
   private stateWriteGeneration = 0;
@@ -170,7 +165,6 @@ export class VaultIndexer {
   }
 
   private schedulePendingWork(delayMs: number): void {
-    this.clearOptimizationTimer();
     if (this.scheduledTimer !== null) window.clearTimeout(this.scheduledTimer);
     this.scheduledTimer = window.setTimeout(() => {
       this.scheduledTimer = null;
@@ -183,7 +177,6 @@ export class VaultIndexer {
     this.pendingPaths.clear();
     this.fullReconciliationRequested = false;
     this.forceRebuildRequested = false;
-    this.optimizeRequested = false;
     if (this.scheduledTimer !== null) {
       window.clearTimeout(this.scheduledTimer);
       this.scheduledTimer = null;
@@ -199,8 +192,6 @@ export class VaultIndexer {
       this.cancel();
       await this.activeRun;
     }
-    this.clearOptimizationTimer();
-    this.unoptimizedPassages = 0;
     await this.store.recreate();
     this.state = null;
     this.persistedIndexUsable = false;
@@ -220,7 +211,6 @@ export class VaultIndexer {
     if (this.disposed) return;
     this.disposed = true;
     if (this.scheduledTimer !== null) window.clearTimeout(this.scheduledTimer);
-    this.clearOptimizationTimer();
     if (this.reconciliationTimer !== null) {
       window.clearInterval(this.reconciliationTimer);
       this.reconciliationTimer = null;
@@ -253,7 +243,6 @@ export class VaultIndexer {
   }
 
   private async drainWorkQueue(): Promise<void> {
-    let failed = false;
     try {
       await this.store.open(this.recoveryRequested);
       this.recoveryRequested = false;
@@ -277,11 +266,6 @@ export class VaultIndexer {
           await this.performIncrementalUpdate(paths);
           continue;
         }
-        if (this.optimizeRequested) {
-          this.optimizeRequested = false;
-          await this.performOptimization();
-          continue;
-        }
         break;
       }
     } catch (error) {
@@ -293,7 +277,6 @@ export class VaultIndexer {
         });
         return;
       }
-      failed = true;
       const message = errorMessage(error);
       this.emitStatus({
         phase: 'error',
@@ -301,10 +284,6 @@ export class VaultIndexer {
         error: message,
       });
       throw error;
-    } finally {
-      if (!failed && !this.cancelRequested && this.unoptimizedPassages > 0) {
-        this.scheduleOptimization();
-      }
     }
   }
 
@@ -322,7 +301,6 @@ export class VaultIndexer {
       await this.store.recreate();
       this.state = newIndexState(settings);
       this.persistedIndexUsable = false;
-      this.unoptimizedPassages = 0;
     }
 
     const currentState = this.state;
@@ -375,17 +353,16 @@ export class VaultIndexer {
       total: changedFiles.length + stalePaths.length,
     });
 
-    let affectedPassages = 0;
     for (const path of stalePaths) {
       if (this.cancelRequested) break;
-      affectedPassages += await this.removePath(path, currentState);
+      await this.removePath(path, currentState);
       this.incrementProgress();
     }
 
     let filesIndexed = 0;
     for (const file of changedFiles) {
       if (this.cancelRequested) break;
-      affectedPassages += await this.updateFile(file, settings, currentState);
+      await this.updateFile(file, settings, currentState);
       filesIndexed += 1;
       this.emitStatus({
         filesIndexed,
@@ -395,7 +372,7 @@ export class VaultIndexer {
       await this.writeState(currentState);
     }
 
-    await this.finishUpdate(currentState, affectedPassages);
+    await this.finishUpdate(currentState);
   }
 
   private async performIncrementalUpdate(paths: string[]): Promise<void> {
@@ -415,7 +392,6 @@ export class VaultIndexer {
     });
 
     let filesIndexed = 0;
-    let affectedPassages = 0;
     for (const path of uniquePaths) {
       if (this.cancelRequested) break;
       const abstractFile = this.app.vault.getAbstractFileByPath(path);
@@ -427,7 +403,7 @@ export class VaultIndexer {
           indexStateNeedsPathRecovery(currentState, path)
           || fileHasChanged(abstractFile, currentState)
         ) {
-          affectedPassages += await this.updateFile(
+          await this.updateFile(
             abstractFile,
             settings,
             currentState,
@@ -439,7 +415,7 @@ export class VaultIndexer {
         currentState.files[path]
         || indexStateNeedsPathRecovery(currentState, path)
       ) {
-        affectedPassages += await this.removePath(path, currentState);
+        await this.removePath(path, currentState);
       }
       this.emitStatus({
         completedDelta: 1,
@@ -448,7 +424,7 @@ export class VaultIndexer {
       } as Partial<IndexStatus>);
     }
 
-    await this.finishUpdate(currentState, affectedPassages);
+    await this.finishUpdate(currentState);
   }
 
   private async updateFile(
@@ -519,22 +495,13 @@ export class VaultIndexer {
     await this.writeState(state);
   }
 
-  private async finishUpdate(
-    state: PersistedIndexState,
-    affectedPassages: number,
-  ): Promise<void> {
+  private async finishUpdate(state: PersistedIndexState): Promise<void> {
     await this.writeState(state);
     if (this.cancelRequested) {
       this.reportCancelled();
       return;
     }
 
-    if (affectedPassages > 0) {
-      this.unoptimizedPassages += affectedPassages;
-      if (this.unoptimizedPassages >= OPTIMIZE_PASSAGE_THRESHOLD) {
-        this.optimizeRequested = true;
-      }
-    }
     const noteCount = Object.keys(state.files).length;
     this.persistedIndexUsable = true;
     this.emitStatus({
@@ -544,45 +511,6 @@ export class VaultIndexer {
       total: noteCount,
       passagesIndexed: this.store.stats.docCount,
     });
-  }
-
-  private async performOptimization(): Promise<void> {
-    if (this.unoptimizedPassages === 0) return;
-    this.clearOptimizationTimer();
-    this.emitStatus({
-      phase: 'optimizing',
-      message: 'Optimizing the ZVec index during idle time…',
-    });
-    await this.store.optimize();
-    this.unoptimizedPassages = 0;
-    const noteCount = Object.keys(this.state?.files ?? {}).length;
-    this.emitStatus({
-      phase: 'ready',
-      message: `Ready: ${this.store.stats.docCount.toLocaleString()} passages from ${noteCount.toLocaleString()} notes`,
-      passagesIndexed: this.store.stats.docCount,
-    });
-  }
-
-  private scheduleOptimization(): void {
-    if (
-      this.optimizationTimer !== null
-      || this.optimizeRequested
-      || this.unoptimizedPassages === 0
-    ) {
-      return;
-    }
-    this.optimizationTimer = window.setTimeout(() => {
-      this.optimizationTimer = null;
-      this.optimizeRequested = true;
-      this.startBackgroundRun('idle index optimization');
-    }, OPTIMIZE_IDLE_MS);
-  }
-
-  private clearOptimizationTimer(): void {
-    if (this.optimizationTimer !== null) {
-      window.clearTimeout(this.optimizationTimer);
-      this.optimizationTimer = null;
-    }
   }
 
   private async passagesForFile(
