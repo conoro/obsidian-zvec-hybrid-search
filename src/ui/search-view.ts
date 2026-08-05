@@ -16,6 +16,7 @@ import type {
   SearchResult,
   SortOrder,
 } from '../types';
+import { modifiedDateRangeFromInputs } from '../search/date-range';
 import { queryTerms } from '../search/text';
 import { ResultPager } from './result-pager';
 import { SearchSession } from './search-session';
@@ -28,6 +29,8 @@ export class HybridSearchView extends ItemView {
   private matchMode: MatchMode;
   private sort: SortOrder;
   private grouping: ResultGrouping;
+  private modifiedFromInput: HTMLInputElement | null = null;
+  private modifiedToInput: HTMLInputElement | null = null;
   private statusEl: HTMLElement | null = null;
   private errorEl: HTMLElement | null = null;
   private progressEl: HTMLProgressElement | null = null;
@@ -88,6 +91,8 @@ export class HybridSearchView extends ItemView {
     this.copyErrorButtonEl = null;
     this.resultsEl = null;
     this.summaryEl = null;
+    this.modifiedFromInput = null;
+    this.modifiedToInput = null;
   }
 
   updateIndexStatus(status: IndexStatus): void {
@@ -240,6 +245,14 @@ export class HybridSearchView extends ItemView {
         if (this.queryInput?.value.trim()) void this.runSearch();
       },
     );
+    this.modifiedFromInput = this.createDateInput(
+      controls,
+      'Modified from',
+    );
+    this.modifiedToInput = this.createDateInput(
+      controls,
+      'Modified to',
+    );
 
     const indexBar = container.createDiv({ cls: 'zvec-index-bar' });
     const statusWrap = indexBar.createDiv({ cls: 'zvec-index-state' });
@@ -305,6 +318,25 @@ export class HybridSearchView extends ItemView {
     return selected;
   }
 
+  private createDateInput(
+    container: HTMLElement,
+    label: string,
+  ): HTMLInputElement {
+    const wrap = container.createDiv({ cls: 'zvec-control' });
+    wrap.createEl('label', { text: label });
+    const input = wrap.createEl('input', {
+      type: 'date',
+      attr: {
+        'aria-label': `${label}; leave blank for no limit`,
+        title: 'Leave blank for no limit',
+      },
+    });
+    input.addEventListener('change', () => {
+      if (this.queryInput?.value.trim()) void this.runSearch();
+    });
+    return input;
+  }
+
   private async runSearch(): Promise<void> {
     const query = (this.queryInput?.value.trim() ?? '').slice(0, 1000);
     if (!query || !this.resultsEl || !this.summaryEl) {
@@ -325,6 +357,10 @@ export class HybridSearchView extends ItemView {
       await this.plugin.ensureRuntimeReady();
       const engine = this.plugin.engine;
       if (!engine) throw new Error('The private search runtime is unavailable.');
+      const dateRange = modifiedDateRangeFromInputs(
+        this.modifiedFromInput?.value ?? '',
+        this.modifiedToInput?.value ?? '',
+      );
       const response = await engine.search({
         query,
         mode: this.mode,
@@ -332,6 +368,7 @@ export class HybridSearchView extends ItemView {
         sort: this.sort,
         grouping: this.grouping,
         limit: this.plugin.settings.candidateLimit,
+        ...dateRange,
       });
       if (!this.searchSession.isCurrent(generation, query)) return;
       this.renderResults(query, response);

@@ -2,6 +2,27 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 0.2.11 — 2026-08-05
+
+### Added
+
+- Search options now include independent **Modified from** and **Modified to**
+  date fields. Leaving both blank searches all dates, while either field can be
+  used on its own. The To date includes the complete selected day.
+- Date conditions run inside ZVec before keyword, semantic, and hybrid ranking,
+  so filtered searches are not limited to an already-truncated candidate list.
+
+### Documentation
+
+- Clarified that titles, headings, note content, and Obsidian tags are searched.
+  Other YAML front-matter properties are not currently indexed.
+
+### Verification
+
+- Type checking, production build, and 49 automated tests pass.
+- A live Obsidian test reused the existing 13,150-passage index without a
+  rebuild. A From-only filter reduced a 56-result query to one result in 56 ms.
+
 ## 0.2.10 — 2026-07-31
 
 ### Fixed

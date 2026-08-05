@@ -57,7 +57,8 @@
   font-size: var(--font-ui-smaller);
 }
 
-.zvec-control select {
+.zvec-control select,
+.zvec-control input {
   width: 100%;
 }
 

@@ -118,7 +118,7 @@ test('runtime platform selection covers every published desktop target', () => {
 });
 
 test('generated search data uses an opaque machine-local directory', () => {
-  const vaultPath = '/Volumes/External/Dropbox/Obsidian';
+  const vaultPath = '/example/synced-vault';
   const macPath = localDataDirectory(vaultPath, {
     platform: 'darwin',
     homeDirectory: '/Users/example',
@@ -142,8 +142,7 @@ test('generated search data uses an opaque machine-local directory', () => {
   assert.match(windowsPath, /zvec-hybrid-search[\\/]vaults[\\/][a-f0-9]{20}$/u);
   assert.match(linuxPath, /zvec-hybrid-search\/vaults\/[a-f0-9]{20}$/u);
   for (const path of [macPath, windowsPath, linuxPath]) {
-    assert.equal(path.includes('Dropbox'), false);
-    assert.equal(path.includes('Obsidian'), false);
+    assert.equal(path.includes('synced-vault'), false);
   }
 });
 

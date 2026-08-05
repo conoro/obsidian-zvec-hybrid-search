@@ -154,6 +154,7 @@ export class ZVecStore {
     matchMode: MatchMode,
     topk: number,
     fieldName = 'searchText',
+    filter?: string,
   ): Promise<ZVecDoc[]> {
     return this.perform<ZVecDoc[]>('keywordQuery', {
       query,
@@ -161,6 +162,7 @@ export class ZVecStore {
       matchMode,
       topk,
       fieldName,
+      filter,
       outputFields: OUTPUT_FIELDS,
     }, QUERY_TIMEOUT_MS);
   }
@@ -168,10 +170,12 @@ export class ZVecStore {
   async semanticQuery(
     vector: Float32Array,
     topk: number,
+    filter?: string,
   ): Promise<ZVecDoc[]> {
     return this.perform<ZVecDoc[]>('semanticQuery', {
       vector,
       topk,
+      filter,
       outputFields: OUTPUT_FIELDS,
     }, QUERY_TIMEOUT_MS);
   }

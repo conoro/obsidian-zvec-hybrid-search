@@ -195,6 +195,7 @@ export function zvecWorkerEntrypoint(): void {
           ? { queryString: String(args.phraseQuery) }
           : { matchString: query },
         topk: Number(args.topk),
+        ...(args.filter ? { filter: String(args.filter) } : {}),
         includeVector: false,
         outputFields: args.outputFields as string[],
         params: {
@@ -210,6 +211,7 @@ export function zvecWorkerEntrypoint(): void {
         fieldName: 'embedding',
         vector: Array.from(args.vector as Float32Array),
         topk: Number(args.topk),
+        ...(args.filter ? { filter: String(args.filter) } : {}),
         includeVector: false,
         outputFields: args.outputFields as string[],
         params: {

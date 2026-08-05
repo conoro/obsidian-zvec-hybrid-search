@@ -120,6 +120,8 @@ export interface SearchRequest {
   sort: SortOrder;
   grouping: ResultGrouping;
   limit: number;
+  modifiedFrom?: number;
+  modifiedTo?: number;
 }
 
 export interface SearchResult {

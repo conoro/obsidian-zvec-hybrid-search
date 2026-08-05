@@ -28,6 +28,7 @@ export class HybridSearchEngine {
       resultLimit,
       2000,
     );
+    const filter = modifiedDateFilter(request);
     let docs: ZVecDoc[] = [];
     let lexicalDocs: ZVecDoc[] = [];
     let semanticDocs: ZVecDoc[] = [];
@@ -37,6 +38,8 @@ export class HybridSearchEngine {
         query,
         request.matchMode,
         candidateLimit,
+        'searchText',
+        filter,
       );
       lexicalDocs = docs;
     } else {
@@ -44,18 +47,25 @@ export class HybridSearchEngine {
       if (!queryVector) throw new Error('The embedding model returned no query vector.');
 
       if (request.mode === 'semantic') {
-        docs = await this.store.semanticQuery(queryVector, candidateLimit);
+        docs = await this.store.semanticQuery(queryVector, candidateLimit, filter);
         semanticDocs = docs;
       } else {
         const [contentDocs, titleDocs, vectorDocs] = await Promise.all([
-          this.store.keywordQuery(query, request.matchMode, candidateLimit),
+          this.store.keywordQuery(
+            query,
+            request.matchMode,
+            candidateLimit,
+            'searchText',
+            filter,
+          ),
           this.store.keywordQuery(
             query,
             request.matchMode,
             Math.max(50, Math.floor(candidateLimit / 2)),
             'titleText',
+            filter,
           ),
-          this.store.semanticQuery(queryVector, candidateLimit),
+          this.store.semanticQuery(queryVector, candidateLimit, filter),
         ]);
         lexicalDocs = contentDocs;
         semanticDocs = vectorDocs;
@@ -101,6 +111,17 @@ export class HybridSearchEngine {
       elapsedMs: performance.now() - started,
     };
   }
+}
+
+function modifiedDateFilter(request: SearchRequest): string | undefined {
+  const conditions: string[] = [];
+  if (Number.isFinite(request.modifiedFrom)) {
+    conditions.push(`mtime >= ${Math.trunc(request.modifiedFrom ?? 0)}`);
+  }
+  if (Number.isFinite(request.modifiedTo)) {
+    conditions.push(`mtime <= ${Math.trunc(request.modifiedTo ?? 0)}`);
+  }
+  return conditions.length > 0 ? conditions.join(' AND ') : undefined;
 }
 
 function clampInteger(value: number, minimum: number, maximum: number): number {

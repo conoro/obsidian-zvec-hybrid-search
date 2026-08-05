@@ -7,13 +7,13 @@ is no separate server or command-line setup.
 Inside Obsidian, the plugin is shown as **ZVec Hybrid Search**.
 
 > [!IMPORTANT]
-> Version 0.2.10 is a public beta. It is not yet available in Obsidian's
+> Version 0.2.11 is a public beta. It is not yet available in Obsidian's
 > Community Plugin directory.
 
 ## What it does
 
 - Finds notes using words, meaning, or a combination of both.
-- Searches note titles, headings, and content.
+- Searches note titles, headings, content, and Obsidian tags.
 - Opens each result at the matching section of the note.
 - Updates the index when notes are created, edited, renamed, or deleted.
 - Lets you index the whole vault or selected top-level folders.
@@ -100,8 +100,16 @@ handled:
 - **Any term** allows results containing only some terms.
 - **Exact phrase** searches for the phrase as written.
 
-You can also change the sort order and choose whether to show the best matching
-section from each note or every matching section.
+You can also limit results by the note's modified date. **Modified from** and
+**Modified to** can be used together or independently; leave both blank to
+search all dates. The To date includes the whole selected day.
+
+Sort order and whether to show the best matching section from each note or
+every matching section are selectable too.
+
+Other YAML front-matter properties are not currently part of the search index.
+For example, a web clipper's `author`, `description`, or `published` property
+will not match unless that text also appears in the note body.
 
 ## Settings
 
