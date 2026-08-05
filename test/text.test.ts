@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   chunkMarkdown,
+  frontmatterToSearchText,
   markdownToPlainText,
   matchesGlob,
   queryTerms,
@@ -121,6 +122,53 @@ test('heading line numbers include stripped frontmatter', () => {
 
   assert.equal(passages[0]?.heading, 'AudioCodes Support');
   assert.equal(passages[0]?.startLine, 4);
+});
+
+test('frontmatter values become a bounded searchable Properties passage', () => {
+  const frontmatter = {
+    title: 'A clipped article',
+    author: ['[[Steve Yegge]]'],
+    published: '2026-08-05',
+    details: { publication: 'Example Weekly' },
+    position: { start: { line: 0 }, end: { line: 8 } },
+  };
+  assert.equal(
+    frontmatterToSearchText(frontmatter),
+    [
+      'title A clipped article',
+      'author Steve Yegge',
+      'published 2026-08-05',
+      'details publication Example Weekly',
+    ].join('\n'),
+  );
+
+  const passages = chunkMarkdown({
+    path: 'Clippings/Article.md',
+    markdown: '---\nauthor:\n  - "[[Steve Yegge]]"\n---\nBody without the author.',
+    chunkSize: 1200,
+    chunkOverlap: 160,
+    tags: ['#clippings'],
+    frontmatter,
+    mtime: 100,
+    ctime: 50,
+  });
+  const properties = passages.find(({ heading }) => heading === 'Properties');
+  assert.match(properties?.searchText ?? '', /author Steve Yegge/);
+  assert.match(properties?.preview ?? '', /publication Example Weekly/);
+  assert.doesNotMatch(properties?.searchText ?? '', /position/);
+
+  const metadataOnly = chunkMarkdown({
+    path: 'Clippings/Metadata only.md',
+    markdown: '---\nauthor: "[[Steve Yegge]]"\n---',
+    chunkSize: 1200,
+    chunkOverlap: 160,
+    tags: [],
+    frontmatter: { author: '[[Steve Yegge]]' },
+    mtime: 100,
+    ctime: 50,
+  });
+  assert.equal(metadataOnly.length, 1);
+  assert.equal(metadataOnly[0]?.heading, 'Properties');
 });
 
 test('Markdown cleanup and query parsing preserve useful text', () => {

@@ -2,6 +2,31 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 0.2.12 — 2026-08-05
+
+### Added
+
+- YAML front-matter property names and values are now indexed, including web
+  clipping metadata such as authors, descriptions, sources, publication dates,
+  aliases, and tags.
+- Metadata is represented as a dedicated **Properties** passage, giving author
+  and other property matches a useful result preview without mixing YAML into
+  normal note previews.
+- Notes containing front matter but no body text are searchable too.
+
+### Changed
+
+- This release performs a one-time index rebuild to add Properties passages.
+  Later note changes continue to use automatic incremental indexing.
+
+### Verification
+
+- Type checking, production build, and 51 automated tests pass, including an
+  end-to-end ZVec search for an author absent from the note body.
+- A live rebuild added 485 Properties passages to a 1,125-note vault. A real
+  web clipping was then found using its front-matter-only author, with the
+  matching property shown in the result preview.
+
 ## 0.2.11 — 2026-08-05
 
 ### Added

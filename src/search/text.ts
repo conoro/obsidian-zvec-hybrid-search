@@ -36,6 +36,7 @@ export interface ChunkOptions {
   chunkSize: number;
   chunkOverlap: number;
   tags: string[];
+  frontmatter?: Record<string, unknown>;
   mtime: number;
   ctime: number;
 }
@@ -166,6 +167,27 @@ export function chunkMarkdown(options: ChunkOptions): Passage[] {
 
   emit();
 
+  const metadataText = frontmatterToSearchText(options.frontmatter);
+  if (metadataText) {
+    const chunkIndex = passages.length;
+    passages.push({
+      id: stablePassageId(options.path, chunkIndex),
+      path: options.path,
+      title,
+      heading: 'Properties',
+      content: metadataText,
+      searchText: `${title}\n${metadataText}`,
+      titleText: `${title} — Properties`,
+      preview: metadataText.slice(0, 420),
+      tags: options.tags,
+      folder,
+      startLine: 0,
+      chunkIndex,
+      mtime: Math.trunc(options.mtime),
+      ctime: Math.trunc(options.ctime),
+    });
+  }
+
   if (passages.length === 0) {
     const plain = markdownToPlainText(options.markdown);
     if (plain) {
@@ -188,6 +210,51 @@ export function chunkMarkdown(options: ChunkOptions): Passage[] {
     }
   }
   return passages;
+}
+
+export function frontmatterToSearchText(
+  frontmatter: Record<string, unknown> | undefined,
+  maximumLength = 12_000,
+): string {
+  if (!frontmatter || maximumLength <= 0) return '';
+  const lines: string[] = [];
+  let length = 0;
+
+  const add = (path: string[], value: unknown): void => {
+    const plain = markdownToPlainText(String(value)).slice(0, 2000);
+    if (!plain) return;
+    const line = `${path.join(' ')} ${plain}`.trim();
+    const remaining = maximumLength - length;
+    if (remaining <= 0) return;
+    const bounded = line.slice(0, remaining);
+    lines.push(bounded);
+    length += bounded.length + 1;
+  };
+
+  const visit = (value: unknown, path: string[], depth: number): void => {
+    if (length >= maximumLength || value === null || value === undefined) return;
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      add(path, value);
+      return;
+    }
+    if (depth >= 5) return;
+    if (Array.isArray(value)) {
+      for (const item of value.slice(0, 100)) visit(item, path, depth + 1);
+      return;
+    }
+    if (typeof value === 'object') {
+      for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+        if (key === 'position') continue;
+        visit(nested, [...path, key], depth + 1);
+      }
+    }
+  };
+
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (key === 'position') continue;
+    visit(value, [key], 0);
+  }
+  return lines.join('\n');
 }
 
 export function queryTerms(query: string): string[] {

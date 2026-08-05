@@ -1,7 +1,7 @@
 {
   "id": "zvec-hybrid-search",
   "name": "ZVec Hybrid Search",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "minAppVersion": "1.8.0",
   "description": "Local hybrid search powered by ZVec BM25 and semantic embeddings.",
   "author": "Conor O'Neill",

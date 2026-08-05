@@ -543,6 +543,7 @@ export class VaultIndexer {
         chunkSize: settings.chunkSize,
         chunkOverlap: settings.chunkOverlap,
         tags,
+        frontmatter: cache?.frontmatter,
         mtime,
         ctime: file.stat.ctime,
       }),

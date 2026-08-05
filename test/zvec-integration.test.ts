@@ -123,6 +123,41 @@ test('later Markdown headings are retrievable through ZVec', async () => {
   }
 });
 
+test('web clipping frontmatter values are retrievable through ZVec', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-metadata-test-'));
+  const store = new ZVecStore(join(directory, 'collection'));
+  await store.open();
+  try {
+    const passages = chunkMarkdown({
+      path: 'Clippings/Article.md',
+      markdown: '# An article\n\nThe body does not name its author.',
+      chunkSize: 1200,
+      chunkOverlap: 0,
+      tags: ['#clippings'],
+      frontmatter: {
+        author: ['[[Steve Yegge]]'],
+        source: 'https://example.com/article',
+        published: '2026-08-05',
+      },
+      mtime: 2,
+      ctime: 1,
+    });
+    await store.upsert(
+      passages,
+      passages.map((passage) => hashEmbedding(passage.searchText)),
+    );
+
+    const matches = await store.keywordQuery('Steve Yegge', 'all', 10);
+    assert.equal(matches.length, 1);
+    assert.equal(matches[0]?.fields.path, 'Clippings/Article.md');
+    assert.equal(matches[0]?.fields.heading, 'Properties');
+    assert.match(String(matches[0]?.fields.preview), /author Steve Yegge/);
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('search can return the complete ranked set for client-side paging', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-paging-test-'));
   const store = new ZVecStore(join(directory, 'collection'));
