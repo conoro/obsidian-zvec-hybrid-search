@@ -3,19 +3,28 @@
  * Node worker. Keep it self-contained: it cannot reference module scope.
  */
 export function zvecWorkerEntrypoint(): void {
-  const workerThreads = require('node:worker_threads') as {
+  const workerThreads = process.getBuiltinModule('node:worker_threads') as {
     parentPort: {
       on(event: 'message', listener: (message: WorkerRequest) => void): void;
       postMessage(message: unknown): void;
     } | null;
     workerData: WorkerData | null;
-  };
-  const {
-    existsSync,
-    mkdirSync,
-  } = require('node:fs') as typeof import('node:fs');
-  const { createRequire } = require('node:module') as typeof import('node:module');
-  const { dirname, join } = require('node:path') as typeof import('node:path');
+  } | undefined;
+  const fsApi = process.getBuiltinModule('node:fs') as
+    | typeof import('node:fs')
+    | undefined;
+  const moduleApi = process.getBuiltinModule('node:module') as
+    | typeof import('node:module')
+    | undefined;
+  const pathApi = process.getBuiltinModule('node:path') as
+    | typeof import('node:path')
+    | undefined;
+  if (!workerThreads || !fsApi || !moduleApi || !pathApi) {
+    throw new Error('Required Node.js runtime modules are unavailable.');
+  }
+  const { existsSync, mkdirSync } = fsApi;
+  const { createRequire } = moduleApi;
+  const { dirname, join } = pathApi;
 
   interface WorkerRequest {
     id: number;
@@ -68,6 +77,10 @@ export function zvecWorkerEntrypoint(): void {
   function requireCollection(): import('@zvec/zvec').ZVecCollection {
     if (!collection) throw new Error('The ZVec collection is not open.');
     return collection;
+  }
+
+  function optionalString(value: unknown): string | undefined {
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
   function createSchema(
@@ -189,13 +202,14 @@ export function zvecWorkerEntrypoint(): void {
       const zvec = getApi();
       const matchMode = String(args.matchMode);
       const query = String(args.query);
+      const filter = optionalString(args.filter);
       const docs = await requireCollection().query({
         fieldName: String(args.fieldName),
         fts: matchMode === 'phrase'
           ? { queryString: String(args.phraseQuery) }
           : { matchString: query },
         topk: Number(args.topk),
-        ...(args.filter ? { filter: String(args.filter) } : {}),
+        ...(filter ? { filter } : {}),
         includeVector: false,
         outputFields: args.outputFields as string[],
         params: {
@@ -207,11 +221,12 @@ export function zvecWorkerEntrypoint(): void {
     }
     if (method === 'semanticQuery') {
       const zvec = getApi();
+      const filter = optionalString(args.filter);
       const docs = await requireCollection().query({
         fieldName: 'embedding',
         vector: Array.from(args.vector as Float32Array),
         topk: Number(args.topk),
-        ...(args.filter ? { filter: String(args.filter) } : {}),
+        ...(filter ? { filter } : {}),
         includeVector: false,
         outputFields: args.outputFields as string[],
         params: {

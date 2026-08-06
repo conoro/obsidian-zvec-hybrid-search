@@ -162,9 +162,13 @@ export default class ZVecHybridSearchPlugin
     });
   }
 
-  override async onunload(): Promise<void> {
+  override onunload(): void {
     this.isUnloading = true;
     this.runtimeManager?.cancel();
+    void this.stopForUnload();
+  }
+
+  private async stopForUnload(): Promise<void> {
     try {
       await withTimeout(
         this.indexer?.stop() ?? Promise.resolve(),
@@ -292,18 +296,10 @@ export default class ZVecHybridSearchPlugin
       message: 'Preparing local search storage…',
       background: false,
     });
-    const {
-      directory: dataDirectory,
-      migrated,
-    } = await prepareLocalDataDirectory(
+    const { directory: dataDirectory } = await prepareLocalDataDirectory(
       targetDataDirectory,
       legacyDataDirectory,
     );
-    if (migrated) {
-      console.info(
-        'ZVec Hybrid Search copied existing generated data out of the synced vault',
-      );
-    }
     this.runtimeManager ??= new RuntimeManager(
       dataDirectory,
       this.manifest.version,
@@ -450,7 +446,7 @@ export default class ZVecHybridSearchPlugin
         active: true,
       });
     }
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
     if (focus && leaf.view instanceof HybridSearchView) {
       leaf.view.focusSearch();
     }

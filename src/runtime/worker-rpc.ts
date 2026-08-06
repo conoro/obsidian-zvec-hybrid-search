@@ -35,7 +35,7 @@ interface PendingRequest {
   method: string;
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
-  timer: ReturnType<typeof setTimeout>;
+  timer: number;
 }
 
 export type WorkerProgressHandler = (message: unknown) => void;
@@ -118,7 +118,7 @@ export class WorkerRpcClient {
     const id = this.nextRequestId;
     this.nextRequestId += 1;
     return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         const error = new PluginRuntimeError(
           'OPERATION_TIMEOUT',
           `ZVec ${method} timed out after ${Math.ceil(timeoutMs / 1000)} seconds. The worker was stopped to protect Obsidian.`,
@@ -137,7 +137,7 @@ export class WorkerRpcClient {
       try {
         this.send({ id, method, args } satisfies WorkerRequest);
       } catch (error) {
-        clearTimeout(timer);
+        window.clearTimeout(timer);
         this.pending.delete(id);
         reject(new PluginRuntimeError(
           'WORKER_ERROR',
@@ -156,16 +156,16 @@ export class WorkerRpcClient {
       'The ZVec plugin is stopping.',
     ));
     const termination = this.terminateTransport();
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let timer: number | undefined;
     try {
       await Promise.race([
         termination,
         new Promise<void>((resolve) => {
-          timer = setTimeout(resolve, timeoutMs);
+          timer = window.setTimeout(resolve, timeoutMs);
         }),
       ]);
     } finally {
-      if (timer !== undefined) clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     }
   }
 
@@ -178,7 +178,7 @@ export class WorkerRpcClient {
     if (typeof message.id !== 'number' || typeof message.ok !== 'boolean') return;
     const pending = this.pending.get(message.id);
     if (!pending) return;
-    clearTimeout(pending.timer);
+    window.clearTimeout(pending.timer);
     this.pending.delete(message.id);
     if (message.ok) {
       pending.resolve((message as unknown as WorkerSuccess).result);
@@ -210,7 +210,7 @@ export class WorkerRpcClient {
 
   private rejectPending(error: Error): void {
     for (const request of this.pending.values()) {
-      clearTimeout(request.timer);
+      window.clearTimeout(request.timer);
       request.reject(error);
     }
     this.pending.clear();
@@ -249,14 +249,14 @@ export class WorkerRpcClient {
     if (child.exitCode !== null || child.killed) return;
     child.kill('SIGTERM');
     await new Promise<void>((resolve) => {
-      const forceTimer = setTimeout(() => {
+      const forceTimer = window.setTimeout(() => {
         if (child.exitCode === null && child.signalCode === null) {
           child.kill('SIGKILL');
         }
         resolve();
       }, 500);
       child.once('exit', () => {
-        clearTimeout(forceTimer);
+        window.clearTimeout(forceTimer);
         resolve();
       });
     });

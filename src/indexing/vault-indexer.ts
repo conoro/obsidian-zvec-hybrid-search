@@ -12,11 +12,8 @@ import type {
   Passage,
   PersistedIndexState,
 } from '../types';
-import {
-  ROOT_FOLDER,
-} from '../types';
 import { LocalEmbeddingService } from '../search/embeddings';
-import { chunkMarkdown, matchesGlob } from '../search/text';
+import { chunkMarkdown } from '../search/text';
 import { ZVecStore } from '../search/zvec-store';
 import { CHANGE_DEBOUNCE_MS } from './cadence';
 import {
@@ -30,6 +27,7 @@ import {
   RECONCILIATION_MTIME_TOLERANCE_MS,
   storedFileMetadataHasChanged,
 } from './index-state';
+import { shouldIndex } from './scope';
 
 type StatusSink = (status: Partial<IndexStatus>) => void;
 
@@ -310,7 +308,7 @@ export class VaultIndexer {
     const vaultFiles = this.app.vault.getMarkdownFiles();
     for (let index = 0; index < vaultFiles.length; index += 1) {
       const file = vaultFiles[index];
-      if (file && shouldIndex(file, settings)) {
+      if (file && shouldIndex(file, settings, this.app.vault.configDir)) {
         files.push(file);
         livePaths.add(file.path);
         if (
@@ -397,7 +395,11 @@ export class VaultIndexer {
       const abstractFile = this.app.vault.getAbstractFileByPath(path);
       if (
         abstractFile instanceof TFile
-        && shouldIndex(abstractFile, settings)
+        && shouldIndex(
+          abstractFile,
+          settings,
+          this.app.vault.configDir,
+        )
       ) {
         if (
           indexStateNeedsPathRecovery(currentState, path)
@@ -706,18 +708,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function yieldToRenderer(): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, 0));
-}
-
-export function shouldIndex(
-  file: Pick<TFile, 'path'>,
-  settings: Pick<HybridSearchSettings, 'indexedFolders' | 'excludePatterns'>,
-): boolean {
-  if (!file.path.toLocaleLowerCase().endsWith('.md')) return false;
-  if (file.path.split('/').some((segment) => segment.startsWith('.'))) return false;
-  if (settings.excludePatterns.some((pattern) => matchesGlob(file.path, pattern))) {
-    return false;
-  }
-  if (settings.indexedFolders.includes(ROOT_FOLDER)) return true;
-  const topLevel = file.path.includes('/') ? file.path.split('/')[0] ?? '' : ROOT_FOLDER;
-  return settings.indexedFolders.includes(topLevel);
 }

@@ -22,7 +22,7 @@ export class LocalEmbeddingService {
   private disposed = false;
   private retryAfter = 0;
   private activeRequests = 0;
-  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private idleTimer: number | null = null;
 
   constructor(
     private readonly cacheDir: string,
@@ -155,7 +155,7 @@ export class LocalEmbeddingService {
 
   private scheduleIdleShutdown(client: WorkerRpcClient): void {
     this.clearIdleTimer();
-    this.idleTimer = setTimeout(() => {
+    this.idleTimer = window.setTimeout(() => {
       this.idleTimer = null;
       if (
         this.disposed
@@ -172,7 +172,7 @@ export class LocalEmbeddingService {
 
   private clearIdleTimer(): void {
     if (this.idleTimer === null) return;
-    clearTimeout(this.idleTimer);
+    window.clearTimeout(this.idleTimer);
     this.idleTimer = null;
   }
 

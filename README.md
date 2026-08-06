@@ -35,16 +35,16 @@ Once the plugin is available in the Community Plugin directory:
 2. Search for **ZVec Hybrid Search**.
 3. Select **Install**, then **Enable**.
 
-If the Community Plugin listing is not available yet, install the public beta
-with BRAT.
+If the Community Plugin listing is not available yet, install the current
+GitHub release with BRAT.
 
-### Install the public beta with BRAT
+### Install from GitHub with BRAT
 
 [BRAT](https://github.com/TfTHacker/obsidian42-brat) installs the plugin from
 GitHub and can keep it updated. BRAT installation is separate from Obsidian's
 Community Plugin directory.
 
-Back up your vault before installing any beta plugin.
+Back up your vault before installing any third-party plugin.
 
 1. In Obsidian, open **Settings → Community plugins → Browse**.
 2. Install and enable **BRAT**.
@@ -191,7 +191,9 @@ Use this method if you do not want to use BRAT.
 1. Open the
    [GitHub releases page](https://github.com/conoro/obsidian-zvec-hybrid-search/releases),
    choose the newest version, and download `zvec-hybrid-search-<version>.zip`.
-2. Extract it into `.obsidian/plugins/zvec-hybrid-search/` inside the vault.
+2. Extract it into `plugins/zvec-hybrid-search/` inside the vault's Obsidian
+   configuration folder. This folder is normally `.obsidian` unless you have
+   changed **Settings → Files and links → Override config folder**.
 3. Confirm that `main.js`, `manifest.json`, and `styles.css` are directly
    inside that folder.
 4. Restart Obsidian.
@@ -204,9 +206,9 @@ existing index and downloaded model are retained.
 
 ## Uninstalling
 
-Disable the plugin in Obsidian, then remove the
-`.obsidian/plugins/zvec-hybrid-search` folder from the vault. Your notes are not
-changed or deleted.
+Disable the plugin in Obsidian, then remove `plugins/zvec-hybrid-search` from
+the vault's Obsidian configuration folder. Your notes are not changed or
+deleted.
 
 Generated search data is kept separately so reinstalling does not require
 another full index. To remove it as well, delete the vault's opaque folder

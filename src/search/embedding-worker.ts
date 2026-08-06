@@ -2,15 +2,24 @@
  * Serialized and executed in a worker. Keep this function self-contained.
  */
 export function embeddingWorkerEntrypoint(): void {
-  const workerThreads = require('node:worker_threads') as {
+  const workerThreads = process.getBuiltinModule('node:worker_threads') as {
     parentPort: {
       on(event: 'message', listener: (message: WorkerRequest) => void): void;
       postMessage(message: unknown, transfer?: ArrayBuffer[]): void;
     } | null;
     workerData: WorkerData | null;
-  };
-  const { createRequire } = require('node:module') as typeof import('node:module');
-  const { join } = require('node:path') as typeof import('node:path');
+  } | undefined;
+  const moduleApi = process.getBuiltinModule('node:module') as
+    | typeof import('node:module')
+    | undefined;
+  const pathApi = process.getBuiltinModule('node:path') as
+    | typeof import('node:path')
+    | undefined;
+  if (!workerThreads || !moduleApi || !pathApi) {
+    throw new Error('Required Node.js runtime modules are unavailable.');
+  }
+  const { createRequire } = moduleApi;
+  const { join } = pathApi;
 
   interface WorkerRequest {
     id: number;
