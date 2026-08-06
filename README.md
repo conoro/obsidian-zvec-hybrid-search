@@ -29,16 +29,13 @@ Mobile is not supported.
 
 ## Install
 
-Once the plugin is available in the Community Plugin directory:
+### From the Community Plugin Directory
 
 1. In Obsidian, open **Settings → Community plugins → Browse**.
 2. Search for **ZVec Hybrid Search**.
 3. Select **Install**, then **Enable**.
 
-If the Community Plugin listing is not available yet, install the current
-GitHub release with BRAT.
-
-### Install from GitHub with BRAT
+### Using BRAT
 
 [BRAT](https://github.com/TfTHacker/obsidian42-brat) installs the plugin from
 GitHub and can keep it updated. BRAT installation is separate from Obsidian's
@@ -58,6 +55,24 @@ No GitHub account or token is required.
 
 To update later, open **Settings → BRAT** and use **Check and update plugin**.
 BRAT can also check for updates when Obsidian starts.
+
+### Manually
+
+1. Open the
+   [GitHub releases page](https://github.com/conoro/obsidian-zvec-hybrid-search/releases),
+   choose the newest version, and download `zvec-hybrid-search-<version>.zip`.
+2. Extract it into `plugins/zvec-hybrid-search/` inside the vault's Obsidian
+   configuration folder. This folder is normally `.obsidian` unless you have
+   changed **Settings → Files and links → Override config folder**.
+3. Confirm that `main.js`, `manifest.json`, and `styles.css` are directly
+   inside that folder.
+4. Restart Obsidian.
+5. Open **Settings → Community plugins** and enable
+   **ZVec Hybrid Search**.
+
+For a manual update, disable the plugin and replace those three files with the
+ones from the newer release. Restart Obsidian and enable the plugin again. The
+existing index and downloaded model are retained.
 
 ## What happens after installation
 
@@ -183,26 +198,6 @@ the note is still missing, open **Settings → ZVec Hybrid Search** and select
 
 Open **Settings → ZVec Hybrid Search**, change **Included notes** or
 **Excluded paths**, then select **Save and rebuild**.
-
-## Manual installation
-
-Use this method if you do not want to use BRAT.
-
-1. Open the
-   [GitHub releases page](https://github.com/conoro/obsidian-zvec-hybrid-search/releases),
-   choose the newest version, and download `zvec-hybrid-search-<version>.zip`.
-2. Extract it into `plugins/zvec-hybrid-search/` inside the vault's Obsidian
-   configuration folder. This folder is normally `.obsidian` unless you have
-   changed **Settings → Files and links → Override config folder**.
-3. Confirm that `main.js`, `manifest.json`, and `styles.css` are directly
-   inside that folder.
-4. Restart Obsidian.
-5. Open **Settings → Community plugins** and enable
-   **ZVec Hybrid Search**.
-
-For a manual update, disable the plugin and replace those three files with the
-ones from the newer release. Restart Obsidian and enable the plugin again. The
-existing index and downloaded model are retained.
 
 ## Uninstalling
 
