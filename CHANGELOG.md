@@ -2,6 +2,14 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.0.2 — 2026-08-06
+
+### Added
+
+- Search results can now be opened in a new tab with a middle-click,
+  Command-click on macOS, or Control-click on Windows and Linux.
+- Normal clicks continue to open results in the current tab.
+
 ## 1.0.1 — 2026-08-06
 
 ### Changed
