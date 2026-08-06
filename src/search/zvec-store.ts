@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import type { ZVecDoc, ZVecDocInput } from '@zvec/zvec';
 import { WorkerRpcClient } from '../runtime/worker-rpc';
 import {

@@ -2,6 +2,46 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.0.0 — 2026-08-06
+
+### Added
+
+- Settings are searchable in Obsidian 1.13 and newer through the declarative
+  settings API. The existing settings renderer remains available on Obsidian
+  1.8 through 1.12.
+- GitHub release assets now receive signed build-provenance attestations.
+- Release verification now checks vaults whose Obsidian configuration folder
+  has a custom name.
+
+### Changed
+
+- The plugin uses `Vault.configDir` when excluding Obsidian's configuration
+  folder instead of assuming that it is named `.obsidian`.
+- Isolated workers load Node built-ins through the bundled Node 22 runtime
+  without forbidden `require()` syntax.
+- The build uses Node's built-in module list instead of the deprecated
+  `builtin-modules` package.
+- README installation wording now describes the stable GitHub release while
+  the Community Plugin submission is being completed.
+
+### Fixed
+
+- Plugin shutdown no longer returns a promise to Obsidian's synchronous
+  lifecycle hook; bounded cleanup continues safely in the background.
+- Workspace navigation and background operations now handle promises
+  explicitly.
+- Runtime downloads validate untyped stream chunks before passing them to
+  typed buffer APIs, and all promise rejections use `Error` instances.
+- Timers use the active window APIs for popout-window compatibility.
+- Deprecated settings controls, an unnecessary migration log, unused imports,
+  and the reported CSS compatibility warnings have been removed.
+
+### Verification
+
+- Type checking, production build, 52 automated tests, and a production
+  dependency audit pass. Official Obsidian source lint completes without
+  errors.
+
 ## 0.3.0 — 2026-08-06
 
 ### Changed

@@ -31,6 +31,7 @@ import {
   prepareLocalDataDirectory,
 } from '../src/runtime/data-directory';
 import { initializeThenPublish } from '../src/runtime/initialization';
+import { shouldIndex } from '../src/indexing/scope';
 import {
   normalizeSettings,
   parseTopLevelFolders,
@@ -84,6 +85,19 @@ test('included folder input stays vault-relative and release-generic', () => {
     ['Archive', 'Nested', 'Projects'],
   );
   assert.deepEqual(parseTopLevelFolders(' \n/\n.\n'), []);
+});
+
+test('index scope excludes Obsidian\'s configured settings directory', () => {
+  const settings = {
+    indexedFolders: ['/'],
+    excludePatterns: ['.trash/**'],
+  };
+  assert.equal(shouldIndex({ path: 'Notes/one.md' }, settings, 'Config'), true);
+  assert.equal(shouldIndex({ path: 'Config/help.md' }, settings, 'Config'), false);
+  assert.equal(
+    shouldIndex({ path: 'Custom/Obsidian/help.md' }, settings, 'Custom/Obsidian'),
+    false,
+  );
 });
 
 test('timeout wrapper rejects stalled async work without blocking the event loop', async () => {

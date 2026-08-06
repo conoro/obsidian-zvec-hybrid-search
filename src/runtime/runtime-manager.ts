@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
-  createReadStream,
   createWriteStream,
   type ReadStream,
 } from 'node:fs';
@@ -401,9 +400,9 @@ async function getJson<T>(
   const response = await openHttps(url, signal);
   const chunks: Buffer[] = [];
   let bytes = 0;
-  for await (const chunk of response) {
+  for await (const chunk of response as AsyncIterable<unknown>) {
     throwIfAborted(signal);
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    const buffer = responseChunkToBuffer(chunk);
     bytes += buffer.length;
     if (bytes > maxBytes) {
       response.destroy();
@@ -490,7 +489,7 @@ async function openHttps(
           redirected = new URL(response.headers.location, initialUrl);
           assertAllowedUrl(redirected);
         } catch (error) {
-          reject(error);
+          reject(toError(error));
           return;
         }
         void openHttps(
@@ -529,7 +528,7 @@ export async function extractZipSafely(
       if (settled) return;
       settled = true;
       zipFile.close();
-      reject(error);
+      reject(toError(error));
     };
     zipFile.once('error', fail);
     zipFile.once('end', () => {
@@ -537,7 +536,7 @@ export async function extractZipSafely(
       settled = true;
       resolve();
     });
-    zipFile.on('entry', (entry) => {
+    zipFile.on('entry', (entry: Entry) => {
       void extractEntry(entry).catch(fail);
     });
 
@@ -570,6 +569,18 @@ export async function extractZipSafely(
 
     zipFile.readEntry();
   });
+}
+
+function responseChunkToBuffer(chunk: unknown): Buffer {
+  if (Buffer.isBuffer(chunk)) return chunk;
+  if (chunk instanceof Uint8Array || typeof chunk === 'string') {
+    return Buffer.from(chunk);
+  }
+  throw new Error('Runtime download returned an unsupported data chunk.');
+}
+
+function toError(reason: unknown): Error {
+  return reason instanceof Error ? reason : new Error(errorMessage(reason));
 }
 
 function openZip(path: string): Promise<ZipFile> {

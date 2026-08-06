@@ -7,8 +7,8 @@
   overflow: hidden;
 }
 
-.zvec-setting-hidden {
-  display: none !important;
+div.setting-item.zvec-setting-hidden {
+  display: none;
 }
 
 .zvec-search-row {
@@ -179,7 +179,7 @@ button.zvec-result:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  column-gap: var(--size-4-2);
+  gap: var(--size-4-2);
 }
 
 .zvec-result-title {

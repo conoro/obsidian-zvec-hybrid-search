@@ -39,9 +39,9 @@ export function withTimeout<T>(
   timeoutMs: number,
   operation: string,
 ): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: number | undefined;
   const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => {
+    timer = window.setTimeout(() => {
       reject(new PluginRuntimeError(
         'OPERATION_TIMEOUT',
         `${operation} did not finish within ${formatDuration(timeoutMs)}.`,
@@ -50,7 +50,7 @@ export function withTimeout<T>(
     }, timeoutMs);
   });
   return Promise.race([promise, timeout]).finally(() => {
-    if (timer !== undefined) clearTimeout(timer);
+    if (timer !== undefined) window.clearTimeout(timer);
   });
 }
 

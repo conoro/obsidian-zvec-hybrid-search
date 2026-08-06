@@ -1,7 +1,7 @@
 {
   "id": "zvec-hybrid-search",
   "name": "ZVec Hybrid Search",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "minAppVersion": "1.8.0",
   "description": "Search your vault locally with ZVec BM25 and semantic embeddings.",
   "author": "Conor O'Neill",

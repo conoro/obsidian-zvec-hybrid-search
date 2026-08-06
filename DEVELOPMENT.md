@@ -91,8 +91,7 @@ publishes only after every platform succeeds.
 ## Versioning
 
 - `0.x.y`: developer previews and public betas
-- `1.0.0`: stable Community Plugin release after cross-platform packaging,
-  review, and a beta period
+- `1.x.y`: stable releases for Community Plugin distribution
 
 Obsidian release tags must match the version in `manifest.json` exactly and
 must not use a `v` prefix.

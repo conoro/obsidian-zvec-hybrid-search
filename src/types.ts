@@ -36,7 +36,7 @@ export interface HybridSearchSettings {
 
 export const DEFAULT_SETTINGS: HybridSearchSettings = {
   indexedFolders: [ROOT_FOLDER],
-  excludePatterns: ['.trash/**', '.obsidian/**'],
+  excludePatterns: ['.trash/**'],
   autoIndex: true,
   chunkSize: 1200,
   chunkOverlap: 160,
