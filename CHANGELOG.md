@@ -2,6 +2,15 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.0.1 — 2026-08-06
+
+### Changed
+
+- Updated the README now that ZVec Hybrid Search is published in the Obsidian
+  Community Plugin Directory.
+- Installation instructions now present the Community Plugin Directory, BRAT,
+  and manual installation as three clear alternatives.
+
 ## 1.0.0 — 2026-08-06
 
 ### Added
