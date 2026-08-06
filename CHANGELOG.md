@@ -2,6 +2,22 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 0.3.0 — 2026-08-06
+
+### Changed
+
+- Reworked the README around Community Plugin installation, removed
+  version-specific beta text, corrected the stale manual-download link, and
+  documented the first-run runtime download and local storage more clearly.
+- Runtime initialization now waits until Obsidian's workspace layout is ready.
+- Command identifiers no longer repeat the plugin identifier, as required for
+  Community Plugin submission. Existing beta users who assigned custom
+  hotkeys to these commands will need to assign them again after updating.
+- Automatic indexing settings no longer claim that the disabled ZVec
+  optimization task runs in the background.
+- Future tagged builds are published as normal GitHub releases rather than
+  prereleases.
+
 ## 0.2.12 — 2026-08-05
 
 ### Added

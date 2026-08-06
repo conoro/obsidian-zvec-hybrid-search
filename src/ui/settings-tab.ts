@@ -193,7 +193,7 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
       .setHeading();
     new Setting(this.containerEl)
       .setName('Automatic incremental indexing')
-      .setDesc('Queue changed notes after 10 quiet seconds; optimize after 45 idle seconds.')
+      .setDesc('Queue changed notes after 10 quiet seconds and update only the affected passages.')
       .addToggle((toggle) => toggle
         .setValue(this.plugin.settings.autoIndex)
         .onChange(async (value) => {
