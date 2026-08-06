@@ -1,6 +1,5 @@
 import {
   ItemView,
-  Keymap,
   MarkdownView,
   Notice,
   TFile,
@@ -18,6 +17,7 @@ import type {
 } from '../types';
 import { modifiedDateRangeFromInputs } from '../search/date-range';
 import { queryTerms } from '../search/text';
+import { resultActivationFor } from './result-activation';
 import { ResultPager } from './result-pager';
 import { SearchSession } from './search-session';
 
@@ -505,14 +505,19 @@ export class HybridSearchView extends ItemView {
         text: `BM25 ${Math.round(result.lexicalScore * 100)} · semantic ${Math.round(result.semanticScore * 100)}`,
       });
     }
-    card.addEventListener('click', (event) => {
-      void this.openResult(result, Boolean(Keymap.isModEvent(event))).catch(
+    const activateResult = (event: MouseEvent): void => {
+      const activation = resultActivationFor(event);
+      if (!activation) return;
+      if (activation.preventDefault) event.preventDefault();
+      void this.openResult(result, activation.newTab).catch(
         (error) => {
           console.error('ZVec Hybrid Search could not open a result', error);
           new Notice(`Could not open ${result.path}`);
         },
       );
-    });
+    };
+    card.addEventListener('click', activateResult);
+    card.addEventListener('auxclick', activateResult);
   }
 
   private async openResult(result: SearchResult, newLeaf: boolean): Promise<void> {
