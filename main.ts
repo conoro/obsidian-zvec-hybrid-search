@@ -68,14 +68,14 @@ export default class ZVecHybridSearchPlugin
       VIEW_TYPE_ZVEC_SEARCH,
       (leaf) => new HybridSearchView(leaf, this),
     );
-    this.addRibbonIcon('scan-search', 'Open ZVec Hybrid Search', () => {
+    this.addRibbonIcon('scan-search', 'Open hybrid search', () => {
       void this.runSafely(
         'Opening the search sidebar',
         () => this.activateView(),
       );
     });
     this.addCommand({
-      id: 'open-zvec-hybrid-search',
+      id: 'open',
       name: 'Open hybrid search',
       callback: () => void this.runSafely(
         'Opening the search sidebar',
@@ -83,7 +83,7 @@ export default class ZVecHybridSearchPlugin
       ),
     });
     this.addCommand({
-      id: 'focus-zvec-hybrid-search',
+      id: 'focus-search-input',
       name: 'Focus hybrid search input',
       callback: () => void this.runSafely(
         'Focusing the search sidebar',
@@ -91,7 +91,7 @@ export default class ZVecHybridSearchPlugin
       ),
     });
     this.addCommand({
-      id: 'reindex-zvec-hybrid-search',
+      id: 'incrementally-reindex-notes',
       name: 'Incrementally reindex notes',
       callback: () => void this.runSafely(
         'Incremental reindex',
@@ -99,18 +99,18 @@ export default class ZVecHybridSearchPlugin
       ),
     });
     this.addCommand({
-      id: 'rebuild-zvec-hybrid-search',
+      id: 'reset-and-rebuild-index',
       name: 'Reset and rebuild search index',
       callback: () => void this.restartRuntimeAndReindex(),
     });
     this.addSettingTab(new ZVecSearchSettingTab(this));
-    void this.ensureRuntimeReady().catch((error) => {
-      if (!this.isUnloading) {
-        console.error('ZVec Hybrid Search runtime startup failed', error);
-      }
-    });
 
     this.app.workspace.onLayoutReady(() => {
+      void this.ensureRuntimeReady().catch((error) => {
+        if (!this.isUnloading) {
+          console.error('ZVec Hybrid Search runtime startup failed', error);
+        }
+      });
       const scheduleFile = (file: TAbstractFile): void => {
         if (!this.settings.autoIndex) return;
         if (file instanceof TFile) {

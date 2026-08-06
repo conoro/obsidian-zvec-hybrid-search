@@ -4,12 +4,6 @@ ZVec Hybrid Search helps you find notes using exact words, related terms, or
 similar ideas. Search runs locally, the index updates automatically, and there
 is no separate server or command-line setup.
 
-Inside Obsidian, the plugin is shown as **ZVec Hybrid Search**.
-
-> [!IMPORTANT]
-> Version 0.2.12 is a public beta. It is not yet available in Obsidian's
-> Community Plugin directory.
-
 ## What it does
 
 - Finds notes using words, meaning, or a combination of both.
@@ -33,11 +27,22 @@ Inside Obsidian, the plugin is shown as **ZVec Hybrid Search**.
 
 Mobile is not supported.
 
-## Install with BRAT
+## Install
+
+Once the plugin is available in the Community Plugin directory:
+
+1. In Obsidian, open **Settings → Community plugins → Browse**.
+2. Search for **ZVec Hybrid Search**.
+3. Select **Install**, then **Enable**.
+
+If the Community Plugin listing is not available yet, install the public beta
+with BRAT.
+
+### Install the public beta with BRAT
 
 [BRAT](https://github.com/TfTHacker/obsidian42-brat) installs the plugin from
-GitHub and can keep it updated. This remains a beta installation and is
-separate from Obsidian's Community Plugin directory.
+GitHub and can keep it updated. BRAT installation is separate from Obsidian's
+Community Plugin directory.
 
 Back up your vault before installing any beta plugin.
 
@@ -58,8 +63,8 @@ BRAT can also check for updates when Obsidian starts.
 
 When the plugin is first enabled, it prepares everything automatically:
 
-1. It downloads the local search component for your computer. The download is
-   about 75–100 MB, depending on the operating system.
+1. It downloads the private local search runtime for your computer. The
+   download is about 75–100 MB, depending on the operating system.
 2. It downloads the recommended language model used to find notes with similar
    meanings.
 3. It builds the first search index.
@@ -132,22 +137,28 @@ intended for advanced tuning.
 Changing the folder scope, excluded paths, passage controls, or embedding
 backend requires **Save and rebuild**.
 
-## Privacy and downloads
+## Privacy, downloads, and local storage
 
 - Note text, the search index, settings, and the language model remain on your
-  computer.
-- Generated search data is stored in the operating system's local application
-  data folder, outside the vault. Sync services do not upload or merge the
-  native database.
-- Search and indexing do not send vault content to an online service.
+  computer. Search and indexing do not send vault content to an online
+  service.
 - The plugin has no telemetry or analytics.
-- The first installation downloads the local search component from this
-  project's GitHub release.
-- The recommended language model is downloaded from Hugging Face.
+- On first use, the plugin contacts GitHub to download the correct private
+  Node.js runtime for the computer. This runtime contains ZVec and the local
+  embedding software. The download is verified before it is installed.
+- The recommended language model is downloaded from Hugging Face on first use.
+- The runtime, model, index, and index state are stored in the operating
+  system's local application-data folder, outside the vault. This keeps the
+  native database away from Dropbox, iCloud, OneDrive, and similar vault sync
+  services.
+- The local runtime runs in child processes so a search or indexing failure can
+  be contained without bringing down Obsidian.
 
 [ZVec](https://github.com/alibaba/zvec) provides the local keyword and
-similarity search database. MiniLM converts note content into a form that can
-be compared by meaning.
+similarity search database.
+[Transformers.js](https://github.com/huggingface/transformers.js) runs the
+[MiniLM model](https://huggingface.co/onnx-community/all-MiniLM-L6-v2-ONNX)
+locally to convert note content into vectors that can be compared by meaning.
 
 ## Troubleshooting
 
@@ -177,8 +188,9 @@ Open **Settings → ZVec Hybrid Search**, change **Included notes** or
 
 Use this method if you do not want to use BRAT.
 
-1. Download `zvec-hybrid-search-0.2.10.zip` from the
-   [0.2.10 GitHub release](https://github.com/conoro/obsidian-zvec-hybrid-search/releases/tag/0.2.10).
+1. Open the
+   [GitHub releases page](https://github.com/conoro/obsidian-zvec-hybrid-search/releases),
+   choose the newest version, and download `zvec-hybrid-search-<version>.zip`.
 2. Extract it into `.obsidian/plugins/zvec-hybrid-search/` inside the vault.
 3. Confirm that `main.js`, `manifest.json`, and `styles.css` are directly
    inside that folder.
