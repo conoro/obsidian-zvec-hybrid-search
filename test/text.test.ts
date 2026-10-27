@@ -183,6 +183,18 @@ test('Markdown cleanup and query parsing preserve useful text', () => {
   ]);
 });
 
+test('Markdown cleanup preserves underscores in identifiers and code', () => {
+  assert.equal(markdownToPlainText('reasoning_effort'), 'reasoning_effort');
+  assert.equal(
+    markdownToPlainText('`reasoning_effort` and _ordinary emphasis_'),
+    'reasoning_effort and ordinary emphasis',
+  );
+  assert.equal(
+    markdownToPlainText('```json\n{"reasoning_effort": "low"}\n```'),
+    '{"reasoning_effort": "low"}',
+  );
+});
+
 test('vault-relative glob matching supports single and recursive stars', () => {
   assert.equal(matchesGlob('.trash/old/note.md', '.trash/**'), true);
   assert.equal(matchesGlob('Projects/one.md', 'Projects/*.md'), true);

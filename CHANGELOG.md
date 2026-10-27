@@ -2,6 +2,23 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.0.3 — 2026-10-27
+
+### Fixed
+
+- Underscores in identifiers such as `reasoning_effort` are preserved during
+  indexing in normal text, inline code, and fenced code blocks.
+- Full JSON fragments such as `"reasoning_effort": "low"` can now be found.
+
+### Changed
+
+- The index schema is updated to rebuild existing indexes once after upgrade,
+  restoring identifiers whose underscores were removed by earlier versions.
+- Bundled semantic runtime dependencies have been updated to upstream versions
+  containing current security fixes.
+- macOS ARM64 release builds now use GitHub's supported macOS 15 runner ahead
+  of the macOS 14 runner retirement.
+
 ## 1.0.2 — 2026-08-06
 
 ### Added
