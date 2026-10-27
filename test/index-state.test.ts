@@ -13,6 +13,7 @@ import {
 } from '../src/indexing/index-state';
 import {
   DEFAULT_SETTINGS,
+  INDEX_SCHEMA_VERSION,
   type PersistedIndexState,
 } from '../src/types';
 
@@ -69,6 +70,16 @@ test('changed indexing settings invalidate the persisted index', () => {
       { ...DEFAULT_SETTINGS, chunkSize: DEFAULT_SETTINGS.chunkSize + 1 },
       3,
     ),
+    false,
+  );
+});
+
+test('an older text schema requires a rebuild', () => {
+  const state = stateWithPassages();
+  state.schemaVersion = INDEX_SCHEMA_VERSION - 1;
+
+  assert.equal(
+    persistedIndexIsUsable(state, DEFAULT_SETTINGS, 3),
     false,
   );
 });

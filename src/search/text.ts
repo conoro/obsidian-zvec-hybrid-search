@@ -3,6 +3,11 @@ import type { Passage } from '../types';
 
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
 const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
+const PROTECTED_UNDERSCORE = '\uE000';
+
+function protectUnderscores(value: string): string {
+  return value.replaceAll('_', PROTECTED_UNDERSCORE);
+}
 
 export function stablePassageId(path: string, chunkIndex: number): string {
   return createHash('sha1').update(`${path}\0${chunkIndex}`).digest('hex');
@@ -16,7 +21,11 @@ export function noteTitle(path: string): string {
 export function markdownToPlainText(markdown: string): string {
   return markdown
     .replace(FRONTMATTER, '')
-    .replace(/```[\s\S]*?```/g, (block) => block.replace(/^```[^\n]*\n?|```$/g, ' '))
+    .replace(/```[\s\S]*?```/g, (block) => protectUnderscores(
+      block.replace(/^```[^\n]*\n?|```$/g, ' '),
+    ))
+    .replace(/`([^`\n]+)`/g, (_match, code: string) => protectUnderscores(code))
+    .replace(/(?<=[\p{L}\p{N}])_(?=[\p{L}\p{N}])/gu, PROTECTED_UNDERSCORE)
     .replace(/!\[\[([^\]]+)\]\]/g, '$1')
     .replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, '$2')
     .replace(/\[\[([^\]]+)\]\]/g, '$1')
@@ -27,6 +36,7 @@ export function markdownToPlainText(markdown: string): string {
     .replace(/^[ \t]*\d+\.\s+/gm, '')
     .replace(/[`*_~>#|]/g, ' ')
     .replace(/\s+/g, ' ')
+    .replaceAll(PROTECTED_UNDERSCORE, '_')
     .trim();
 }
 

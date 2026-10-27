@@ -1,6 +1,6 @@
 {
   "name": "obsidian-zvec-hybrid-search",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Local hybrid search for Obsidian powered by ZVec BM25 and semantic embeddings.",
   "private": true,
   "type": "module",
@@ -23,7 +23,7 @@
     "verify": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@huggingface/transformers": "4.2.0",
+    "@huggingface/transformers": "4.3.1",
     "@zvec/zvec": "0.6.0"
   },
   "devDependencies": {
@@ -38,8 +38,8 @@
     "yauzl": "^3.4.0"
   },
   "overrides": {
-    "adm-zip": "0.6.0",
-    "sharp": "0.35.3"
+    "adm-zip": "0.6.1",
+    "sharp": "0.35.5"
   },
   "engines": {
     "node": ">=22"

@@ -158,6 +158,61 @@ test('web clipping frontmatter values are retrievable through ZVec', async () =>
   }
 });
 
+test('underscored identifiers and JSON entries are retrievable through ZVec', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-underscore-test-'));
+  const store = new ZVecStore(join(directory, 'collection'));
+  await store.open();
+  try {
+    const passages = [
+      ...chunkMarkdown({
+        path: 'Inline.md',
+        markdown: 'The setting is `reasoning_effort` and its value is low.',
+        chunkSize: 1200,
+        chunkOverlap: 0,
+        tags: [],
+        mtime: 2,
+        ctime: 1,
+      }),
+      ...chunkMarkdown({
+        path: 'JSON.md',
+        markdown: '```json\n{"reasoning_effort": "low"}\n```',
+        chunkSize: 1200,
+        chunkOverlap: 0,
+        tags: [],
+        mtime: 2,
+        ctime: 1,
+      }),
+    ];
+    await store.upsert(
+      passages,
+      passages.map((passage) => hashEmbedding(passage.searchText)),
+    );
+
+    const identifierMatches = await store.keywordQuery(
+      'reasoning_effort',
+      'all',
+      10,
+    );
+    assert.deepEqual(
+      new Set(identifierMatches.map((match) => match.fields.path)),
+      new Set(['Inline.md', 'JSON.md']),
+    );
+
+    const jsonMatches = await store.keywordQuery(
+      '"reasoning_effort": "low"',
+      'all',
+      10,
+    );
+    assert.deepEqual(
+      new Set(jsonMatches.map((match) => match.fields.path)),
+      new Set(['Inline.md', 'JSON.md']),
+    );
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('search can return the complete ranked set for client-side paging', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-paging-test-'));
   const store = new ZVecStore(join(directory, 'collection'));
