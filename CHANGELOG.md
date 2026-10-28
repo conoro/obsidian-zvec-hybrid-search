@@ -2,6 +2,14 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.1.1 — 2026-10-28
+
+### Fixed
+
+- The **Include clippings** search option now uses Obsidian's native switch,
+  preventing themes from rendering its checkbox as a faint vertical mark over
+  the label.
+
 ## 1.1.0 — 2026-10-28
 
 ### Added

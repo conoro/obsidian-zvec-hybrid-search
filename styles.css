@@ -62,16 +62,21 @@ div.setting-item.zvec-setting-hidden {
   width: 100%;
 }
 
-.zvec-toggle-control label {
+.zvec-toggle-row {
   display: flex;
   align-items: center;
-  gap: var(--size-4-1);
-  color: var(--text-normal);
+  justify-content: space-between;
+  gap: var(--size-4-2);
+  min-height: var(--input-height);
 }
 
-.zvec-toggle-control label input {
-  width: auto;
-  margin: 0;
+.zvec-toggle-label {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.zvec-toggle-row .checkbox-container {
+  flex: 0 0 auto;
 }
 
 .zvec-control-description {
