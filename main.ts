@@ -14,7 +14,10 @@ import {
   PluginRuntimeError,
   withTimeout,
 } from './src/runtime/safety';
-import { RuntimeManager } from './src/runtime/runtime-manager';
+import {
+  RUNTIME_RELEASE_VERSION,
+  RuntimeManager,
+} from './src/runtime/runtime-manager';
 import {
   localDataDirectory,
   prepareLocalDataDirectory,
@@ -302,7 +305,7 @@ export default class ZVecHybridSearchPlugin
     );
     this.runtimeManager ??= new RuntimeManager(
       dataDirectory,
-      this.manifest.version,
+      RUNTIME_RELEASE_VERSION,
       (message, completed = 0, total = 0) => this.updateStatus({
         phase: 'downloading-runtime',
         message,

@@ -2,6 +2,15 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.1.2 — 2026-10-28
+
+### Fixed
+
+- Plugin-only updates now reuse the last compatible private search runtime
+  instead of downloading and extracting another identical copy.
+- Runtime installation now reports extraction progress, responds immediately
+  to cancellation, and fails locally if extraction stops making progress.
+
 ## 1.1.1 — 2026-10-28
 
 ### Fixed
