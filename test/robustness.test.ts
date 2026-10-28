@@ -31,11 +31,16 @@ import {
   prepareLocalDataDirectory,
 } from '../src/runtime/data-directory';
 import { initializeThenPublish } from '../src/runtime/initialization';
-import { shouldIndex } from '../src/indexing/scope';
+import {
+  clippingsFolderIsFullyIndexed,
+  shouldIndex,
+} from '../src/indexing/scope';
 import {
   normalizeSettings,
+  normalizeVaultFolder,
   parseTopLevelFolders,
 } from '../src/settings';
+import { buildSearchFilter } from '../src/search/engine';
 import {
   hashEmbedding,
   LocalEmbeddingService,
@@ -59,6 +64,8 @@ test('settings normalization bounds malformed persisted values', () => {
     defaultMatchMode: 'invalid',
     defaultSort: 'invalid',
     defaultGrouping: 'invalid',
+    clippingsFolder: '../Private',
+    excludeClippingsByDefault: 'yes',
     resultLimit: 100_000,
     candidateLimit: 100_000,
     titleBoost: Number.NaN,
@@ -74,9 +81,23 @@ test('settings normalization bounds malformed persisted values', () => {
   assert.equal(settings.embeddingDtype, DEFAULT_SETTINGS.embeddingDtype);
   assert.equal(settings.embeddingBatchSize, 64);
   assert.equal(settings.defaultMode, DEFAULT_SETTINGS.defaultMode);
+  assert.equal(settings.clippingsFolder, DEFAULT_SETTINGS.clippingsFolder);
+  assert.equal(
+    settings.excludeClippingsByDefault,
+    DEFAULT_SETTINGS.excludeClippingsByDefault,
+  );
   assert.equal(settings.resultLimit, 100);
   assert.equal(settings.candidateLimit, 2000);
   assert.equal(settings.titleBoost, DEFAULT_SETTINGS.titleBoost);
+});
+
+test('clippings folder paths stay vault-relative and may be nested', () => {
+  assert.equal(
+    normalizeVaultFolder(' /Research\\Web Clippings/ '),
+    'Research/Web Clippings',
+  );
+  assert.equal(normalizeVaultFolder('.hidden/Clippings'), 'Clippings');
+  assert.equal(normalizeVaultFolder('Research/../Private'), 'Clippings');
 });
 
 test('included folder input stays vault-relative and release-generic', () => {
@@ -97,6 +118,38 @@ test('index scope excludes Obsidian\'s configured settings directory', () => {
   assert.equal(
     shouldIndex({ path: 'Custom/Obsidian/help.md' }, settings, 'Custom/Obsidian'),
     false,
+  );
+});
+
+test('clippings availability follows the existing index scope', () => {
+  assert.equal(clippingsFolderIsFullyIndexed({
+    ...DEFAULT_SETTINGS,
+    excludePatterns: ['.trash/**'],
+  }), true);
+  assert.equal(clippingsFolderIsFullyIndexed({
+    ...DEFAULT_SETTINGS,
+    excludePatterns: ['.trash/**', 'Clippings/**'],
+  }), false);
+  assert.equal(clippingsFolderIsFullyIndexed({
+    ...DEFAULT_SETTINGS,
+    indexedFolders: ['Work'],
+  }), false);
+});
+
+test('search filter excludes a folder prefix and composes with date bounds', () => {
+  assert.equal(
+    buildSearchFilter(
+      { modifiedFrom: 100, modifiedTo: 200 },
+      DEFAULT_SETTINGS,
+    ),
+    '(path < "Clippings/" OR path >= "Clippings0") AND mtime >= 100 AND mtime <= 200',
+  );
+  assert.equal(
+    buildSearchFilter(
+      { includeClippings: true },
+      DEFAULT_SETTINGS,
+    ),
+    undefined,
   );
 });
 

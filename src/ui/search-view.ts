@@ -6,6 +6,7 @@ import {
   type WorkspaceLeaf,
 } from 'obsidian';
 import type { ZVecPluginApi } from '../plugin-api';
+import { clippingsFolderIsFullyIndexed } from '../indexing/scope';
 import type {
   IndexStatus,
   MatchMode,
@@ -29,6 +30,7 @@ export class HybridSearchView extends ItemView {
   private matchMode: MatchMode;
   private sort: SortOrder;
   private grouping: ResultGrouping;
+  private includeClippings: boolean;
   private modifiedFromInput: HTMLInputElement | null = null;
   private modifiedToInput: HTMLInputElement | null = null;
   private statusEl: HTMLElement | null = null;
@@ -55,6 +57,7 @@ export class HybridSearchView extends ItemView {
     this.matchMode = plugin.settings.defaultMatchMode;
     this.sort = plugin.settings.defaultSort;
     this.grouping = plugin.settings.defaultGrouping;
+    this.includeClippings = !plugin.settings.excludeClippingsByDefault;
   }
 
   getViewType(): string {
@@ -253,6 +256,24 @@ export class HybridSearchView extends ItemView {
       controls,
       'Modified to',
     );
+    const clippingsAvailable = clippingsFolderIsFullyIndexed(
+      this.plugin.settings,
+      this.app.vault.configDir,
+    );
+    if (!clippingsAvailable) this.includeClippings = false;
+    this.createToggle(
+      controls,
+      'Include clippings',
+      clippingsAvailable
+        ? `Also search notes in ${this.plugin.settings.clippingsFolder}.`
+        : `${this.plugin.settings.clippingsFolder} is outside the index scope or excluded in Settings.`,
+      this.includeClippings,
+      !clippingsAvailable,
+      (value) => {
+        this.includeClippings = value;
+        if (this.queryInput?.value.trim()) void this.runSearch();
+      },
+    );
 
     const indexBar = container.createDiv({ cls: 'zvec-index-bar' });
     const statusWrap = indexBar.createDiv({ cls: 'zvec-index-state' });
@@ -337,6 +358,27 @@ export class HybridSearchView extends ItemView {
     return input;
   }
 
+  private createToggle(
+    container: HTMLElement,
+    label: string,
+    description: string,
+    checked: boolean,
+    disabled: boolean,
+    onChange: (value: boolean) => void,
+  ): void {
+    const wrap = container.createDiv({ cls: 'zvec-control zvec-toggle-control' });
+    const labelEl = wrap.createEl('label');
+    const input = labelEl.createEl('input', {
+      type: 'checkbox',
+      attr: { 'aria-label': label },
+    });
+    input.checked = checked;
+    input.disabled = disabled;
+    labelEl.appendText(label);
+    wrap.createDiv({ cls: 'zvec-control-description', text: description });
+    input.addEventListener('change', () => onChange(input.checked));
+  }
+
   private async runSearch(): Promise<void> {
     const query = (this.queryInput?.value.trim() ?? '').slice(0, 1000);
     if (!query || !this.resultsEl || !this.summaryEl) {
@@ -368,6 +410,7 @@ export class HybridSearchView extends ItemView {
         sort: this.sort,
         grouping: this.grouping,
         limit: this.plugin.settings.candidateLimit,
+        includeClippings: this.includeClippings,
         ...dateRange,
       });
       if (!this.searchSession.isCurrent(generation, query)) return;
@@ -471,8 +514,9 @@ export class HybridSearchView extends ItemView {
     const shownLabel = shown < response.total
       ? ` · showing ${shown.toLocaleString()}`
       : '';
+    const clippingsLabel = this.includeClippings ? ' · including clippings' : '';
     this.summaryEl.setText(
-      `${total} ${resultLabel}${shownLabel} · ${Math.round(response.elapsedMs)} ms`,
+      `${total} ${resultLabel}${shownLabel}${clippingsLabel} · ${Math.round(response.elapsedMs)} ms`,
     );
   }
 

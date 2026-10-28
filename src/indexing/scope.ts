@@ -30,3 +30,18 @@ export function shouldIndex(
     : ROOT_FOLDER;
   return settings.indexedFolders.includes(topLevel);
 }
+
+export function clippingsFolderIsFullyIndexed(
+  settings: Pick<
+    HybridSearchSettings,
+    'clippingsFolder' | 'indexedFolders' | 'excludePatterns'
+  >,
+  configDir?: string,
+): boolean {
+  const folder = settings.clippingsFolder.replace(/\/+$/gu, '');
+  const probe = '__zvec_clippings_probe__.md';
+  return [
+    `${folder}/${probe}`,
+    `${folder}/nested/${probe}`,
+  ].every((path) => shouldIndex({ path }, settings, configDir));
+}

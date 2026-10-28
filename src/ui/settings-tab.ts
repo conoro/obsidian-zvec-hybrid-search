@@ -5,7 +5,12 @@ import {
   type SettingDefinitionItem,
 } from 'obsidian';
 import type { ZVecPluginApi } from '../plugin-api';
-import { normalizeSettings, parseTopLevelFolders } from '../settings';
+import { clippingsFolderIsFullyIndexed } from '../indexing/scope';
+import {
+  normalizeSettings,
+  normalizeVaultFolder,
+  parseTopLevelFolders,
+} from '../settings';
 import {
   ROOT_FOLDER,
   type EmbeddingBackend,
@@ -137,6 +142,19 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
                 notes: 'Best passage per note',
                 passages: 'All passages',
               },
+            },
+          },
+          {
+            name: 'Clippings folder',
+            desc: this.clippingsFolderDescription(),
+            render: (setting) => this.addClippingsFolderControl(setting),
+          },
+          {
+            name: 'Exclude clippings by default',
+            desc: 'Keep clippings out of normal searches. They remain indexed and can be included from Search options.',
+            control: {
+              type: 'toggle',
+              key: 'excludeClippingsByDefault',
             },
           },
           {
@@ -345,6 +363,20 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
           this.plugin.settings.defaultGrouping = value as ResultGrouping;
           await this.plugin.saveSettings();
         }));
+    this.addClippingsFolderControl(
+      new Setting(this.containerEl)
+        .setName('Clippings folder')
+        .setDesc(this.clippingsFolderDescription()),
+    );
+    new Setting(this.containerEl)
+      .setName('Exclude clippings by default')
+      .setDesc('Keep clippings out of normal searches. They remain indexed and can be included from Search options.')
+      .addToggle((toggle) => toggle
+        .setValue(this.plugin.settings.excludeClippingsByDefault)
+        .onChange(async (value) => {
+          this.plugin.settings.excludeClippingsByDefault = value;
+          await this.plugin.saveSettings();
+        }));
     this.addResultsPerBatchControl(
       new Setting(this.containerEl)
         .setName('Results per batch')
@@ -481,6 +513,26 @@ export class ZVecSearchSettingTab extends PluginSettingTab {
         this.plugin.settings.resultLimit = Number(value);
         await this.plugin.saveSettings();
       }));
+  }
+
+  private addClippingsFolderControl(setting: Setting): void {
+    setting.addText((text) => text
+      .setPlaceholder('Clippings')
+      .setValue(this.plugin.settings.clippingsFolder)
+      .onChange(async (value) => {
+        this.plugin.settings.clippingsFolder = normalizeVaultFolder(value);
+        await this.plugin.saveSettings();
+      }));
+  }
+
+  private clippingsFolderDescription(): string {
+    const description = 'Vault-relative folder kept out of searches unless Include clippings is enabled. It remains indexed.';
+    return clippingsFolderIsFullyIndexed(
+      this.plugin.settings,
+      this.plugin.app.vault.configDir,
+    )
+      ? description
+      : `${description} This folder is currently outside the index scope or excluded, so it cannot be included in a search.`;
   }
 
   private addEmbeddingBackendControl(setting: Setting): void {
