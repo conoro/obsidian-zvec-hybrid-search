@@ -321,6 +321,79 @@ test('modified-date bounds filter every search mode before ranking', async () =>
   }
 });
 
+test('clippings can be excluded or included in every search mode', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-clippings-test-'));
+  const store = new ZVecStore(join(directory, 'collection'));
+  await store.open();
+  try {
+    const passages = [
+      ['Work/Plan.md', 'work'],
+      ['Clippings/Article.md', 'article'],
+      ['Clippings/Nested/Reference.md', 'reference'],
+    ].flatMap(([path, title]) => chunkMarkdown({
+      path: path ?? '',
+      markdown: `# ${title}\n\nclippingsfiltermarker`,
+      chunkSize: 1200,
+      chunkOverlap: 0,
+      tags: [],
+      mtime: 200,
+      ctime: 100,
+    }));
+    await store.upsert(
+      passages,
+      passages.map((passage) => hashEmbedding(passage.searchText)),
+    );
+    const embeddings = new LocalEmbeddingService(
+      join(directory, 'models'),
+      'hash',
+      'unused',
+      'q4',
+      () => undefined,
+    );
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      embeddingBackend: 'hash' as const,
+      candidateLimit: 20,
+    };
+    const engine = new HybridSearchEngine(store, embeddings, () => settings);
+    try {
+      for (const mode of ['keyword', 'semantic', 'hybrid'] as const) {
+        const request = {
+          query: 'clippingsfiltermarker',
+          mode,
+          matchMode: 'all' as const,
+          sort: 'relevance' as const,
+          grouping: 'notes' as const,
+          limit: 10,
+        };
+        const withoutClippings = await engine.search(request);
+        assert.deepEqual(
+          withoutClippings.results.map((result) => result.path),
+          ['Work/Plan.md'],
+        );
+
+        const withClippings = await engine.search({
+          ...request,
+          includeClippings: true,
+        });
+        assert.deepEqual(
+          new Set(withClippings.results.map((result) => result.path)),
+          new Set([
+            'Work/Plan.md',
+            'Clippings/Article.md',
+            'Clippings/Nested/Reference.md',
+          ]),
+        );
+      }
+    } finally {
+      await embeddings.dispose();
+    }
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('ZVec upserts and deletes are searchable without optimize', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-obsidian-update-test-'));
   const store = new ZVecStore(join(directory, 'collection'));

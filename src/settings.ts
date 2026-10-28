@@ -31,6 +31,25 @@ export function parseTopLevelFolders(value: string): string[] {
     .sort((a, b) => a.localeCompare(b));
 }
 
+export function normalizeVaultFolder(
+  value: unknown,
+  fallback = DEFAULT_SETTINGS.clippingsFolder,
+): string {
+  if (typeof value !== 'string') return fallback;
+  const normalized = value
+    .trim()
+    .replaceAll('\\', '/')
+    .replace(/^\/+|\/+$/gu, '')
+    .replace(/\/{2,}/gu, '/')
+    .slice(0, 500);
+  const segments = normalized.split('/');
+  return normalized
+    && segments.every((segment) => segment && segment !== '.' && segment !== '..')
+    && !segments.some((segment) => segment.startsWith('.'))
+    ? normalized
+    : fallback;
+}
+
 export function normalizeSettings(raw: unknown): HybridSearchSettings {
   const saved = isRecord(raw) ? raw : {};
   return {
@@ -88,6 +107,11 @@ export function normalizeSettings(raw: unknown): HybridSearchSettings {
       saved.defaultGrouping,
       GROUPINGS,
       DEFAULT_SETTINGS.defaultGrouping,
+    ),
+    clippingsFolder: normalizeVaultFolder(saved.clippingsFolder),
+    excludeClippingsByDefault: booleanValue(
+      saved.excludeClippingsByDefault,
+      DEFAULT_SETTINGS.excludeClippingsByDefault,
     ),
     resultLimit: integerValue(
       saved.resultLimit,

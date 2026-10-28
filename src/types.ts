@@ -29,6 +29,8 @@ export interface HybridSearchSettings {
   defaultMatchMode: MatchMode;
   defaultSort: SortOrder;
   defaultGrouping: ResultGrouping;
+  clippingsFolder: string;
+  excludeClippingsByDefault: boolean;
   resultLimit: number;
   candidateLimit: number;
   titleBoost: number;
@@ -48,6 +50,8 @@ export const DEFAULT_SETTINGS: HybridSearchSettings = {
   defaultMatchMode: 'all',
   defaultSort: 'relevance',
   defaultGrouping: 'notes',
+  clippingsFolder: 'Clippings',
+  excludeClippingsByDefault: true,
   resultLimit: 20,
   candidateLimit: 500,
   titleBoost: 0.35,
@@ -122,6 +126,7 @@ export interface SearchRequest {
   limit: number;
   modifiedFrom?: number;
   modifiedTo?: number;
+  includeClippings?: boolean;
 }
 
 export interface SearchResult {

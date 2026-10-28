@@ -125,6 +125,10 @@ You can also limit results by the note's modified date. **Modified from** and
 **Modified to** can be used together or independently; leave both blank to
 search all dates. The To date includes the whole selected day.
 
+Notes in the configured **Clippings folder** are left out by default so saved
+articles do not crowd out your own notes. Turn on **Include clippings** for any
+search when you want them. This is instant because Clippings remain indexed.
+
 Sort order and whether to show the best matching section from each note or
 every matching section are selectable too.
 
@@ -138,6 +142,8 @@ Open **Settings → ZVec Hybrid Search**.
 The most useful settings are:
 
 - **Included notes:** Index the entire vault or selected top-level folders.
+- **Clippings folder:** Choose which vault-relative folder the per-search
+  **Include clippings** option controls.
 - **Excluded paths:** Skip folders using patterns such as `.trash/**` or
   `Archive/**`.
 - **Automatic incremental indexing:** Keep the index updated as notes change.

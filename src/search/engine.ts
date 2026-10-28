@@ -5,7 +5,7 @@ import type {
   SearchResponse,
   SearchResult,
 } from '../types';
-import { queryTerms } from './text';
+import { escapeFilterString, queryTerms } from './text';
 import { LocalEmbeddingService } from './embeddings';
 import { ZVecStore } from './zvec-store';
 
@@ -28,7 +28,7 @@ export class HybridSearchEngine {
       resultLimit,
       2000,
     );
-    const filter = modifiedDateFilter(request);
+    const filter = buildSearchFilter(request, settings);
     let docs: ZVecDoc[] = [];
     let lexicalDocs: ZVecDoc[] = [];
     let semanticDocs: ZVecDoc[] = [];
@@ -113,8 +113,27 @@ export class HybridSearchEngine {
   }
 }
 
-function modifiedDateFilter(request: SearchRequest): string | undefined {
+export function buildSearchFilter(
+  request: Pick<
+    SearchRequest,
+    'includeClippings' | 'modifiedFrom' | 'modifiedTo'
+  >,
+  settings: Pick<
+    HybridSearchSettings,
+    'clippingsFolder' | 'excludeClippingsByDefault'
+  >,
+): string | undefined {
   const conditions: string[] = [];
+  const includeClippings = request.includeClippings
+    ?? !settings.excludeClippingsByDefault;
+  if (!includeClippings) {
+    const folder = settings.clippingsFolder.replace(/\/+$/gu, '');
+    const prefix = `${folder}/`;
+    const prefixEnd = `${folder}0`;
+    conditions.push(
+      `(path < ${escapeFilterString(prefix)} OR path >= ${escapeFilterString(prefixEnd)})`,
+    );
+  }
   if (Number.isFinite(request.modifiedFrom)) {
     conditions.push(`mtime >= ${Math.trunc(request.modifiedFrom ?? 0)}`);
   }

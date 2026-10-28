@@ -2,6 +2,20 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.1.0 — 2026-10-28
+
+### Added
+
+- Clippings are excluded from search results by default, with an **Include
+  clippings** toggle in Search options for searches that need them.
+- The Clippings folder and its default search behaviour can be configured in
+  Settings without rebuilding the index.
+
+### Changed
+
+- Existing indexes remain compatible and do not need to be rebuilt for this
+  update.
+
 ## 1.0.4 — 2026-10-28
 
 ### Changed
