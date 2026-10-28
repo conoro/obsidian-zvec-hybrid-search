@@ -3,6 +3,7 @@ import {
   MarkdownView,
   Notice,
   TFile,
+  ToggleComponent,
   type WorkspaceLeaf,
 } from 'obsidian';
 import type { ZVecPluginApi } from '../plugin-api';
@@ -367,16 +368,14 @@ export class HybridSearchView extends ItemView {
     onChange: (value: boolean) => void,
   ): void {
     const wrap = container.createDiv({ cls: 'zvec-control zvec-toggle-control' });
-    const labelEl = wrap.createEl('label');
-    const input = labelEl.createEl('input', {
-      type: 'checkbox',
-      attr: { 'aria-label': label },
-    });
-    input.checked = checked;
-    input.disabled = disabled;
-    labelEl.appendText(label);
+    const row = wrap.createDiv({ cls: 'zvec-toggle-row' });
+    row.createSpan({ cls: 'zvec-toggle-label', text: label });
+    const toggle = new ToggleComponent(row)
+      .setValue(checked)
+      .setDisabled(disabled)
+      .onChange(onChange);
+    toggle.toggleEl.setAttribute('aria-label', label);
     wrap.createDiv({ cls: 'zvec-control-description', text: description });
-    input.addEventListener('change', () => onChange(input.checked));
   }
 
   private async runSearch(): Promise<void> {
