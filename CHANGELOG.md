@@ -2,6 +2,19 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.0.4 — 2026-10-28
+
+### Changed
+
+- Updated the private search runtime from ZVec 0.6.0 to ZVec 0.8.0.
+- Existing indexes remain compatible and do not need to be rebuilt for this
+  update.
+- The updated ZVec runtime includes fixes for concurrent searches during index
+  writes, full-text index persistence and recovery, and index maintenance with
+  deleted records.
+- ZVec's smaller macOS ARM64 native package reduces the installed private
+  runtime footprint.
+
 ## 1.0.3 — 2026-10-27
 
 ### Fixed
