@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import {
   createWriteStream,
   type ReadStream,
+  type WriteStream,
 } from 'node:fs';
 import {
   chmod,
@@ -36,6 +37,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const DOWNLOAD_TIMEOUT_MS = 15 * 60_000;
 const MAX_REDIRECTS = 5;
 const RETRY_COOLDOWN_MS = 60_000;
+const EXTRACTION_STALL_TIMEOUT_MS = 60_000;
 const READY_FILE = '.ready.json';
 const ALLOWED_DOWNLOAD_HOSTS = new Set([
   'api.github.com',
@@ -43,6 +45,10 @@ const ALLOWED_DOWNLOAD_HOSTS = new Set([
   'objects.githubusercontent.com',
   'release-assets.githubusercontent.com',
 ]);
+
+// Patch releases reuse this runtime until native or embedding dependencies
+// change. Bump it only to a release that contains a newly packaged runtime.
+export const RUNTIME_RELEASE_VERSION = '1.1.0';
 
 export interface RuntimeInstallation {
   rootDirectory: string;
@@ -183,8 +189,18 @@ export class RuntimeManager {
           );
         }
         throwIfAborted(signal);
-        this.onStatus('Verifying and installing the search runtime…');
-        await extractZipSafely(archivePath, workRoot, signal);
+        this.onStatus('Installing the search runtime…');
+        await extractZipSafely(
+          archivePath,
+          workRoot,
+          signal,
+          (completed, total) => this.onStatus(
+            'Installing the search runtime…',
+            completed,
+            total,
+          ),
+        );
+        this.onStatus('Validating the search runtime…');
         await validateRuntimePayload(workRoot, platformKey);
         const marker: RuntimeReadyMarker = {
           version: this.version,
@@ -518,27 +534,57 @@ export async function extractZipSafely(
   archivePath: string,
   destination: string,
   signal: AbortSignal,
+  onProgress: (completed: number, total: number) => void = () => undefined,
 ): Promise<void> {
+  throwIfAborted(signal);
   const zipFile = await openZip(archivePath);
   let entries = 0;
   let extractedBytes = 0;
   await new Promise<void>((resolve, reject) => {
     let settled = false;
+    let stallTimer: number | null = null;
+    let activeInput: ReadStream | null = null;
+    let activeOutput: WriteStream | null = null;
+
+    const cleanup = (): void => {
+      if (stallTimer !== null) window.clearTimeout(stallTimer);
+      stallTimer = null;
+      signal.removeEventListener('abort', abort);
+    };
     const fail = (error: unknown): void => {
       if (settled) return;
       settled = true;
+      cleanup();
+      activeInput?.destroy();
+      activeOutput?.destroy();
       zipFile.close();
       reject(toError(error));
     };
+    const abort = (): void => fail(
+      signal.reason ?? new Error('Runtime installation was cancelled.'),
+    );
+    const armStallTimer = (): void => {
+      if (stallTimer !== null) window.clearTimeout(stallTimer);
+      stallTimer = window.setTimeout(() => fail(new Error(
+        'Runtime extraction stopped making progress for 60 seconds.',
+      )), EXTRACTION_STALL_TIMEOUT_MS);
+    };
+    signal.addEventListener('abort', abort, { once: true });
     zipFile.once('error', fail);
     zipFile.once('end', () => {
       if (settled) return;
       settled = true;
+      cleanup();
+      onProgress(entries, zipFile.entryCount);
       resolve();
     });
     zipFile.on('entry', (entry: Entry) => {
       void extractEntry(entry).catch(fail);
     });
+
+    onProgress(0, zipFile.entryCount);
+    if (settled) return;
+    armStallTimer();
 
     async function extractEntry(entry: Entry): Promise<void> {
       throwIfAborted(signal);
@@ -554,20 +600,36 @@ export async function extractZipSafely(
       const outputPath = join(destination, ...relativePath.split('/'));
       if (entry.fileName.endsWith('/')) {
         await mkdir(outputPath, { recursive: true });
-        zipFile.readEntry();
+        reportProgress();
+        if (!settled) zipFile.readEntry();
         return;
       }
       await mkdir(dirname(outputPath), { recursive: true });
-      const input = await openZipEntry(zipFile, entry);
-      const output = createWriteStream(outputPath, {
+      activeInput = await openZipEntry(zipFile, entry);
+      activeOutput = createWriteStream(outputPath, {
         flags: 'wx',
         mode: executableMode(entry),
       });
-      await pipeline(input, output, { signal });
-      zipFile.readEntry();
+      await pipeline(activeInput, activeOutput, { signal });
+      activeInput = null;
+      activeOutput = null;
+      reportProgress();
+      if (!settled) zipFile.readEntry();
     }
 
-    zipFile.readEntry();
+    function reportProgress(): void {
+      if (settled) return;
+      armStallTimer();
+      if (
+        entries === zipFile.entryCount
+        || entries === 1
+        || entries % 25 === 0
+      ) {
+        onProgress(entries, zipFile.entryCount);
+      }
+    }
+
+    if (!settled) zipFile.readEntry();
   });
 }
 

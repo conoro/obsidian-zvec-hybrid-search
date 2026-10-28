@@ -18,6 +18,7 @@ import {
   withTimeout,
 } from '../src/runtime/safety';
 import {
+  RUNTIME_RELEASE_VERSION,
   RuntimeManager,
   extractZipSafely,
   isExpectedRuntimeAssetUrl,
@@ -184,6 +185,14 @@ test('runtime platform selection covers every published desktop target', () => {
   );
 });
 
+test('plugin-only releases keep using the compatible native runtime', () => {
+  assert.equal(RUNTIME_RELEASE_VERSION, '1.1.0');
+  assert.equal(
+    runtimeAssetName(RUNTIME_RELEASE_VERSION, 'darwin-arm64'),
+    'zvec-runtime-1.1.0-darwin-arm64.zip',
+  );
+});
+
 test('generated search data uses an opaque machine-local directory', () => {
   const vaultPath = '/example/synced-vault';
   const macPath = localDataDirectory(vaultPath, {
@@ -313,14 +322,44 @@ test('runtime archives extract through the bounded streaming installer', async (
   try {
     await createTestZip(archivePath);
     await mkdir(extracted, { recursive: true });
+    const progress: Array<[number, number]> = [];
     await extractZipSafely(
       archivePath,
       extracted,
       new AbortController().signal,
+      (completed, total) => progress.push([completed, total]),
     );
     assert.equal(
       await readFile(join(extracted, 'bin', 'node'), 'utf8'),
       'private runtime',
+    );
+    const finalProgress = progress.at(-1);
+    assert.ok(finalProgress);
+    assert.deepEqual(progress[0], [0, finalProgress[1]]);
+    assert.deepEqual(finalProgress, [finalProgress[1], finalProgress[1]]);
+
+    const cancelled = new AbortController();
+    cancelled.abort(new Error('cancelled before extraction'));
+    await assert.rejects(
+      extractZipSafely(archivePath, extracted, cancelled.signal),
+      /cancelled before extraction/u,
+    );
+
+    const interrupted = new AbortController();
+    const interruptedOutput = join(directory, 'interrupted');
+    await mkdir(interruptedOutput, { recursive: true });
+    await assert.rejects(
+      extractZipSafely(
+        archivePath,
+        interruptedOutput,
+        interrupted.signal,
+        (completed) => {
+          if (completed === 1) {
+            interrupted.abort(new Error('cancelled during extraction'));
+          }
+        },
+      ),
+      /cancelled during extraction/u,
     );
   } finally {
     await rm(directory, { recursive: true, force: true });
