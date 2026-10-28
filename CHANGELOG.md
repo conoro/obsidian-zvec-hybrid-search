@@ -2,7 +2,7 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
-## Unreleased
+## 1.1.2 — 2026-10-28
 
 ### Fixed
 
