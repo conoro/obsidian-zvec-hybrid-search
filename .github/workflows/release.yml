@@ -64,7 +64,7 @@ jobs:
       matrix:
         include:
           - name: macOS ARM64
-            runner: macos-15
+            runner: macos-26
             target: darwin-arm64
           - name: Windows x64
             runner: windows-2025
