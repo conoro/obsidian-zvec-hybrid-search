@@ -87,9 +87,10 @@ export class WorkerRpcClient {
         );
       }
       if (!this.stopped) {
+        const stderr = this.recentStderr.trim();
         this.fail(new PluginRuntimeError(
           'WORKER_ERROR',
-          `The isolated plugin process exited unexpectedly (code ${code ?? 'none'}, signal ${signal ?? 'none'}).`,
+          `The isolated plugin process exited unexpectedly (code ${code ?? 'none'}, signal ${signal ?? 'none'}).${stderr ? ` ${stderr}` : ''}`,
           { retryable: true },
         ));
       }

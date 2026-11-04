@@ -49,6 +49,7 @@ import {
 import { ZVecStore } from '../src/search/zvec-store';
 import { createZVecWorkerSource } from '../src/search/zvec-worker';
 import { DEFAULT_SETTINGS } from '../src/types';
+import projectPackage from '../package.json' with { type: 'json' };
 
 test('settings normalization bounds malformed persisted values', () => {
   const settings = normalizeSettings({
@@ -187,6 +188,7 @@ test('runtime platform selection covers every published desktop target', () => {
 
 test('plugin-only releases keep using the compatible native runtime', () => {
   assert.equal(RUNTIME_RELEASE_VERSION, '1.1.0');
+  assert.equal(projectPackage.runtimeReleaseVersion, RUNTIME_RELEASE_VERSION);
   assert.equal(
     runtimeAssetName(RUNTIME_RELEASE_VERSION, 'darwin-arm64'),
     'zvec-runtime-1.1.0-darwin-arm64.zip',
@@ -222,7 +224,7 @@ test('generated search data uses an opaque machine-local directory', () => {
   }
 });
 
-test('legacy generated data is copied once into local storage', async () => {
+test('legacy generated data in a synced vault is ignored', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-data-migration-'));
   const legacy = join(directory, 'legacy');
   const target = join(directory, 'local', 'vault-key');
@@ -232,22 +234,25 @@ test('legacy generated data is copied once into local storage', async () => {
     await writeFile(join(legacy, 'collection', 'manifest.0'), 'collection');
 
     const first = await prepareLocalDataDirectory(target, legacy);
-    assert.equal(first.migrated, true);
-    assert.equal(
-      await readFile(join(target, 'collection', 'manifest.0'), 'utf8'),
-      'collection',
-    );
+    assert.equal(first.migrated, false);
+    await assert.rejects(readFile(join(target, 'collection', 'manifest.0')));
 
     await writeFile(join(legacy, 'index-state.json'), 'changed legacy data');
     const second = await prepareLocalDataDirectory(target, legacy);
     assert.equal(second.migrated, false);
-    assert.equal(
-      await readFile(join(target, 'index-state.json'), 'utf8'),
-      '{"files":{}}',
-    );
+    await assert.rejects(readFile(join(target, 'index-state.json')));
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('relative XDG data paths are ignored', () => {
+  const actual = localDataDirectory('/vault', {
+    platform: 'linux',
+    homeDirectory: '/home/example',
+    environment: { XDG_DATA_HOME: '.local/share' },
+  });
+  assert.match(actual, /^\/home\/example\/\.local\/share\//u);
 });
 
 test('runtime components remain private until initialization completes', async () => {
@@ -508,6 +513,31 @@ test('native stderr is retained when a worker returns an empty error', async () 
   }
 });
 
+test('native stderr is included when an isolated process exits', async () => {
+  const client = new WorkerRpcClient(
+    `
+      process.on('message', () => {
+        process.stderr.write('linux native loader detail\\n', () => process.exit(7));
+      });
+    `,
+    {},
+    () => undefined,
+    undefined,
+    true,
+  );
+  try {
+    await assert.rejects(
+      client.request('open', {}, 1000),
+      (error: unknown) =>
+        error instanceof PluginRuntimeError
+        && error.message.includes('code 7')
+        && error.message.includes('linux native loader detail'),
+    );
+  } finally {
+    await client.stop();
+  }
+});
+
 test('ZVec opens and closes through Electron-style child isolation', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-child-store-'));
   const client = new WorkerRpcClient(
@@ -553,7 +583,7 @@ test('unavailable collection storage fails locally instead of blocking', async (
   }
 });
 
-test('an existing invalid collection is never replaced after an open failure', async () => {
+test('an existing invalid generated collection is repaired after an open failure', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-existing-collection-'));
   const collection = join(directory, 'collection');
   const sentinel = join(collection, 'do-not-replace.txt');
@@ -561,16 +591,35 @@ test('an existing invalid collection is never replaced after an open failure', a
   await writeFile(sentinel, 'existing collection');
   const store = new ZVecStore(collection);
   try {
+    await store.open(true);
+    assert.equal(store.repairedDuringOpen, true);
+    assert.equal(store.stats.docCount, 0);
+    await assert.rejects(readFile(sentinel));
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('a collection locked by another process is never replaced', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-locked-collection-'));
+  const collection = join(directory, 'collection');
+  const owner = new ZVecStore(collection);
+  const contender = new ZVecStore(collection);
+  try {
+    await owner.open(true);
     await assert.rejects(
-      store.open(true),
+      contender.open(true),
       (error: unknown) =>
         error instanceof PluginRuntimeError
         && error.code === 'RUNTIME_UNAVAILABLE'
-        && error.message.includes('left untouched'),
+        && error.message.includes('in use'),
     );
-    assert.equal(await readFile(sentinel, 'utf8'), 'existing collection');
+    assert.equal(owner.isAvailable, true);
+    assert.equal(contender.repairedDuringOpen, false);
   } finally {
-    await store.close();
+    await contender.close();
+    await owner.close();
     await rm(directory, { recursive: true, force: true });
   }
 });
