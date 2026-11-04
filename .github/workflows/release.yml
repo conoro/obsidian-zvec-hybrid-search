@@ -18,9 +18,9 @@ jobs:
       runtime-release-version: ${{ steps.release-metadata.outputs.runtime-release-version }}
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Use Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -68,7 +68,7 @@ jobs:
           zip "zvec-hybrid-search-${GITHUB_REF_NAME}.zip" \
             main.js manifest.json styles.css
       - name: Upload plugin assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: plugin
           path: dist/plugin/*
@@ -99,9 +99,9 @@ jobs:
             target: linux-arm64
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Use Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -110,7 +110,7 @@ jobs:
       - name: Build and smoke-test native runtime
         run: npm run package:runtime -- --target "${{ matrix.target }}"
       - name: Upload native runtime
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: runtime-${{ matrix.target }}
           path: dist/runtime/*
@@ -127,9 +127,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Download validated assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: release-assets
           merge-multiple: true

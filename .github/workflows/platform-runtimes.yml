@@ -10,7 +10,34 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect runtime changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      rebuild: ${{ steps.detect.outputs.rebuild }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Detect native runtime inputs
+        id: detect
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+          else
+            node scripts/runtime-inputs-changed.mjs \
+              "$BASE_SHA" "$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          fi
+
   runtime:
+    needs: changes
+    if: needs.changes.outputs.rebuild == 'true'
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -32,9 +59,9 @@ jobs:
             target: linux-arm64
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Use Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -43,7 +70,7 @@ jobs:
       - name: Build and smoke-test native runtime
         run: npm run package:runtime -- --target "${{ matrix.target }}"
       - name: Upload native runtime
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: runtime-${{ matrix.target }}
           path: dist/runtime/*
