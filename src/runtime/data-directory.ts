@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, win32 } from 'node:path';
 
 const STORAGE_MARKER = '.storage-ready.json';
 
@@ -31,7 +31,7 @@ export function localDataDirectory(
         ?? join(homeDirectory, 'AppData', 'Local')
       )
       : (
-        environment.XDG_DATA_HOME
+        absoluteEnvironmentPath(environment.XDG_DATA_HOME, platform)
         ?? join(homeDirectory, '.local', 'share')
       );
   return join(
@@ -60,20 +60,16 @@ export async function prepareLocalDataDirectory(
   const stagingDirectory = `${targetDirectory}.migrating-${process.pid}-${Date.now()}`;
   const hasLegacyData = await pathExists(legacyDataDirectory);
   try {
-    if (hasLegacyData) {
-      await fs.cp(legacyDataDirectory, stagingDirectory, {
-        recursive: true,
-        errorOnExist: true,
-        force: false,
-      });
-    } else {
-      await fs.mkdir(stagingDirectory, { recursive: true });
-    }
+    // Generated native storage must never be copied out of a synced vault.
+    // It may have been created on another OS, or only partially synced. A new
+    // machine can safely rebuild it from the Markdown source files.
+    await fs.mkdir(stagingDirectory, { recursive: true });
     await fs.writeFile(
       join(stagingDirectory, STORAGE_MARKER),
       `${JSON.stringify({
-        schemaVersion: 1,
-        migratedLegacyData: hasLegacyData,
+        schemaVersion: 2,
+        migratedLegacyData: false,
+        ignoredLegacyData: hasLegacyData,
         createdAt: new Date().toISOString(),
       }, null, 2)}\n`,
       'utf8',
@@ -86,8 +82,19 @@ export async function prepareLocalDataDirectory(
   }
   return {
     directory: targetDirectory,
-    migrated: hasLegacyData,
+    migrated: false,
   };
+}
+
+function absoluteEnvironmentPath(
+  value: string | undefined,
+  platform: NodeJS.Platform,
+): string | undefined {
+  if (!value) return undefined;
+  const absolute = platform === 'win32'
+    ? win32.isAbsolute(value)
+    : isAbsolute(value);
+  return absolute ? value : undefined;
 }
 
 async function pathExists(path: string): Promise<boolean> {

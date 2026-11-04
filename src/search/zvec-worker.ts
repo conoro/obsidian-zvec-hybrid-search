@@ -22,7 +22,13 @@ export function zvecWorkerEntrypoint(): void {
   if (!workerThreads || !fsApi || !moduleApi || !pathApi) {
     throw new Error('Required Node.js runtime modules are unavailable.');
   }
-  const { existsSync, mkdirSync } = fsApi;
+  const {
+    existsSync,
+    mkdirSync,
+    renameSync,
+    rmSync,
+    promises: { rm: rmAsync },
+  } = fsApi;
   const { createRequire } = moduleApi;
   const { dirname, join } = pathApi;
 
@@ -136,6 +142,7 @@ export function zvecWorkerEntrypoint(): void {
     args: Record<string, unknown>,
   ): Promise<unknown> {
     if (method === 'open') {
+      let recovered = false;
       if (!collection) {
         const zvec = getApi();
         mkdirSync(dirname(workerData.collectionPath), { recursive: true });
@@ -147,17 +154,53 @@ export function zvecWorkerEntrypoint(): void {
             const message = error instanceof Error
               ? error.message
               : String(error);
-            throw new Error(
-              `The existing ZVec collection could not be opened and was left untouched: ${message}`,
+            if (!collectionCanBeRebuilt(message)) {
+              throw new Error(
+                `The existing ZVec collection is in use or its location is not writable: ${message}`,
+              );
+            }
+            const backupPath = `${workerData.collectionPath}.unreadable-${process.pid}-${Date.now()}`;
+            try {
+              renameSync(workerData.collectionPath, backupPath);
+            } catch (renameError) {
+              throw new Error(
+                `The existing ZVec collection could not be opened or moved aside: ${message}. ${errorText(renameError)}`,
+              );
+            }
+            try {
+              collection = zvec.ZVecCreateAndOpen(
+                workerData.collectionPath,
+                createSchema(zvec),
+              );
+              recovered = true;
+              // Do not make startup wait while a large unusable index is
+              // removed. The replacement collection is already open.
+              void rmAsync(backupPath, {
+                recursive: true,
+                force: true,
+              }).catch(() => undefined);
+            } catch (createError) {
+              rmSync(workerData.collectionPath, { recursive: true, force: true });
+              try {
+                renameSync(backupPath, workerData.collectionPath);
+              } catch (restoreError) {
+                throw new Error(
+                  `ZVec could not create clean storage after an open failure, and the old generated index could not be restored: ${errorText(createError)}. ${errorText(restoreError)}`,
+                );
+              }
+              throw new Error(
+                `ZVec could not create clean storage after an open failure; the old generated index was restored: ${errorText(createError)}`,
+              );
+            }
+          } else {
+            collection = zvec.ZVecCreateAndOpen(
+              workerData.collectionPath,
+              createSchema(zvec),
             );
           }
-          collection = zvec.ZVecCreateAndOpen(
-            workerData.collectionPath,
-            createSchema(zvec),
-          );
         }
       }
-      return { stats: stats() };
+      return { stats: stats(), recovered };
     }
     if (method === 'recreate') {
       const zvec = getApi();
@@ -242,6 +285,21 @@ export function zvecWorkerEntrypoint(): void {
       return {};
     }
     throw new Error(`Unknown worker method: ${method}`);
+  }
+
+  function errorText(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  function collectionCanBeRebuilt(message: string): boolean {
+    const normalized = message.toLowerCase();
+    return ![
+      'can\'t lock read-write collection',
+      'permission denied',
+      'operation not permitted',
+      'read-only file system',
+      'resource temporarily unavailable',
+    ].some((fragment) => normalized.includes(fragment));
   }
 
   function errorPayload(error: unknown): { message: string; stack?: string } {

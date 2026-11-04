@@ -30,6 +30,7 @@ const RETRY_COOLDOWN_MS = 15_000;
 interface WorkerResult<T = undefined> {
   value?: T;
   stats?: ZVecStats;
+  recovered?: boolean;
 }
 
 interface ZVecStats {
@@ -49,6 +50,7 @@ export class ZVecStore {
   private stopped = false;
   private retryAfter = 0;
   private cachedStats: ZVecStats = EMPTY_STATS;
+  private recoveredOnOpen = false;
 
   constructor(
     private readonly collectionPath: string,
@@ -64,6 +66,10 @@ export class ZVecStore {
     return this.ready && !this.stopped;
   }
 
+  get repairedDuringOpen(): boolean {
+    return this.recoveredOnOpen;
+  }
+
   async open(forceRetry = false): Promise<void> {
     if (this.stopped) {
       throw new PluginRuntimeError(
@@ -77,7 +83,7 @@ export class ZVecStore {
       const seconds = Math.max(1, Math.ceil((this.retryAfter - Date.now()) / 1000));
       throw new PluginRuntimeError(
         'RUNTIME_UNAVAILABLE',
-        `ZVec storage is temporarily unavailable. Retry in ${seconds} seconds or remount the vault disk.`,
+        `ZVec storage is temporarily unavailable. Retry in ${seconds} seconds.`,
         { retryable: true },
       );
     }
@@ -201,6 +207,7 @@ export class ZVecStore {
         OPEN_TIMEOUT_MS,
       );
       this.updateStats(result.stats);
+      this.recoveredOnOpen = result.recovered === true;
       this.ready = true;
       this.retryAfter = 0;
     } catch (error) {
@@ -210,7 +217,7 @@ export class ZVecStore {
       if (this.client === client) this.client = null;
       throw new PluginRuntimeError(
         'RUNTIME_UNAVAILABLE',
-        `ZVec storage could not be opened. Obsidian remains available; remount the vault disk and retry. ${errorMessage(error)}`,
+        `ZVec storage could not be opened. Obsidian remains available. ${errorMessage(error)}`,
         { cause: error, retryable: true },
       );
     }

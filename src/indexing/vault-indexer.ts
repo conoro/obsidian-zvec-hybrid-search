@@ -86,6 +86,11 @@ export class VaultIndexer {
     );
     await this.store.open();
     this.state = await this.readState();
+    if (this.store.repairedDuringOpen) {
+      // The collection was generated data that ZVec could not reopen. Ignore
+      // its old bookkeeping so startup performs a complete source rebuild.
+      this.state = null;
+    }
     if (this.state && this.state.embeddingDtype === undefined) {
       this.state.embeddingDtype = this.settings().embeddingDtype;
     }
