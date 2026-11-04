@@ -178,7 +178,7 @@ export class ZVecStore {
     filter?: string,
   ): Promise<ZVecDoc[]> {
     return this.perform<ZVecDoc[]>('semanticQuery', {
-      vector,
+      vector: Array.from(vector),
       topk,
       filter,
       outputFields: OUTPUT_FIELDS,

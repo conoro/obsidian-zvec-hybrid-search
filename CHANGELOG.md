@@ -2,6 +2,16 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.1.4 — 2026-11-04
+
+### Fixed
+
+- Isolated search and embedding processes now use version-stable JSON IPC.
+  This prevents startup failures when Obsidian's embedded Node/V8 build and
+  the private search runtime support different structured-clone versions.
+- Semantic embedding vectors are explicitly converted at the process boundary
+  so they retain their dimensions and numeric values with JSON IPC.
+
 ## 1.1.3 — 2026-11-04
 
 ### Fixed

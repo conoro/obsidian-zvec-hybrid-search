@@ -46,6 +46,7 @@ import {
   hashEmbedding,
   LocalEmbeddingService,
 } from '../src/search/embeddings';
+import { createEmbeddingWorkerSource } from '../src/search/embedding-worker';
 import { ZVecStore } from '../src/search/zvec-store';
 import { createZVecWorkerSource } from '../src/search/zvec-worker';
 import { DEFAULT_SETTINGS } from '../src/types';
@@ -456,14 +457,18 @@ test('a hung native-style worker is terminated while the main loop stays respons
   await client.stop();
 });
 
-test('Electron-style child-process isolation supports request and shutdown', async () => {
+test('Electron-style child-process isolation uses version-stable JSON messages', async () => {
   const client = new WorkerRpcClient(
     `
       process.on('message', (request) => {
         process.send({
           id: request.id,
           ok: true,
-          result: { echoed: request.args.value },
+          result: {
+            echoed: request.args.value,
+            vector: request.args.vector,
+            receivedArray: Array.isArray(request.args.vector),
+          },
         });
       });
     `,
@@ -473,12 +478,23 @@ test('Electron-style child-process isolation supports request and shutdown', asy
     true,
   );
   try {
-    const result = await client.request<{ echoed: string }>(
+    const result = await client.request<{
+      echoed: string;
+      vector: number[];
+      receivedArray: boolean;
+    }>(
       'echo',
-      { value: 'isolated child' },
+      {
+        value: 'isolated child',
+        vector: new Float32Array([1.5, 2.5]),
+      },
       1000,
     );
-    assert.deepEqual(result, { echoed: 'isolated child' });
+    assert.deepEqual(result, {
+      echoed: 'isolated child',
+      vector: [1.5, 2.5],
+      receivedArray: true,
+    });
   } finally {
     await client.stop();
   }
@@ -557,6 +573,39 @@ test('ZVec opens and closes through Electron-style child isolation', async () =>
     }>('open', {}, 5000);
     assert.equal(opened.stats.docCount, 0);
     await client.request('close', {}, 1000);
+  } finally {
+    await client.stop();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('embeddings cross the Electron-style JSON boundary without shape loss', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-child-embedding-'));
+  const client = new WorkerRpcClient(
+    createEmbeddingWorkerSource(),
+    {
+      runtimeDirectory: process.cwd(),
+      cacheDir: directory,
+      backend: 'hash',
+      model: 'unused',
+      dtype: 'q4',
+      dimension: 384,
+    },
+    () => undefined,
+    undefined,
+    true,
+  );
+  try {
+    const [vector] = await client.request<number[][]>(
+      'embed',
+      { texts: ['cross-version embedding'] },
+      1000,
+    );
+    assert.ok(Array.isArray(vector));
+    assert.deepEqual(
+      Float32Array.from(vector ?? []),
+      hashEmbedding('cross-version embedding'),
+    );
   } finally {
     await client.stop();
     await rm(directory, { recursive: true, force: true });
