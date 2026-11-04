@@ -2,6 +2,18 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.1.3 — 2026-11-04
+
+### Fixed
+
+- A new computer no longer copies generated native search data out of a
+  Dropbox- or sync-managed vault. Each computer creates its own local index.
+- An unreadable or interrupted generated collection is now safely replaced and
+  rebuilt from the vault, while live lock and filesystem permission errors are
+  left untouched.
+- Relative or empty Linux `XDG_DATA_HOME` values no longer place search data in
+  Obsidian's application directory.
+
 ## 1.1.2 — 2026-10-28
 
 ### Fixed
