@@ -13,6 +13,8 @@ All notable changes to ZVec Hybrid Search for Obsidian are documented here.
   left untouched.
 - Relative or empty Linux `XDG_DATA_HOME` values no longer place search data in
   Obsidian's application directory.
+- Plugin-only releases no longer rebuild and republish unchanged native runtime
+  packages.
 
 ## 1.1.2 — 2026-10-28
 

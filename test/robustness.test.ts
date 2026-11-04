@@ -49,6 +49,7 @@ import {
 import { ZVecStore } from '../src/search/zvec-store';
 import { createZVecWorkerSource } from '../src/search/zvec-worker';
 import { DEFAULT_SETTINGS } from '../src/types';
+import projectPackage from '../package.json' with { type: 'json' };
 
 test('settings normalization bounds malformed persisted values', () => {
   const settings = normalizeSettings({
@@ -187,6 +188,7 @@ test('runtime platform selection covers every published desktop target', () => {
 
 test('plugin-only releases keep using the compatible native runtime', () => {
   assert.equal(RUNTIME_RELEASE_VERSION, '1.1.0');
+  assert.equal(projectPackage.runtimeReleaseVersion, RUNTIME_RELEASE_VERSION);
   assert.equal(
     runtimeAssetName(RUNTIME_RELEASE_VERSION, 'darwin-arm64'),
     'zvec-runtime-1.1.0-darwin-arm64.zip',
