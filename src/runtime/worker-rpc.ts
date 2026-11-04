@@ -225,7 +225,7 @@ export class WorkerRpcClient {
     if (!this.transport.connected || !this.transport.send) {
       throw new Error('The isolated plugin process IPC channel is closed.');
     }
-    this.transport.send(request, (error) => {
+    this.transport.send(jsonSafeIpcValue(request) as object, (error) => {
       if (error) this.fail(new PluginRuntimeError(
         'WORKER_ERROR',
         `Could not communicate with the isolated plugin process: ${error.message}`,
@@ -298,11 +298,25 @@ function createElectronNodeChild(
         OBSIDIAN_ZVEC_CHILD_DATA: JSON.stringify(workerData),
       },
       stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
-      serialization: 'advanced',
+      // Obsidian's embedded Node and the private runtime are updated on
+      // independent schedules. V8's advanced clone format is not guaranteed
+      // to be compatible across those versions, while JSON IPC is.
+      serialization: 'json',
       windowsHide: true,
     },
   );
   return child;
+}
+
+function jsonSafeIpcValue(value: unknown): unknown {
+  if (ArrayBuffer.isView(value) && !(value instanceof DataView)) {
+    return Array.from(value as unknown as ArrayLike<number>);
+  }
+  if (Array.isArray(value)) return value.map(jsonSafeIpcValue);
+  if (!isRecord(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, jsonSafeIpcValue(entry)]),
+  );
 }
 
 function resolveIsolatedNodeExecutable(explicit?: string): string {

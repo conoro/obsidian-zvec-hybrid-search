@@ -186,6 +186,14 @@ export function embeddingWorkerEntrypoint(): void {
       try {
         if (request.method === 'embed') {
           const vectors = await embed(request.args.texts ?? []);
+          if (childData) {
+            ipc.postMessage({
+              id: request.id,
+              ok: true,
+              result: vectors.map((vector) => Array.from(vector)),
+            });
+            return;
+          }
           ipc.postMessage(
             { id: request.id, ok: true, result: vectors },
             vectors.map((vector) => vector.buffer as ArrayBuffer),

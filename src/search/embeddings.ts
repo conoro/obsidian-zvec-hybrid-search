@@ -56,7 +56,7 @@ export class LocalEmbeddingService {
       this.backend === 'minilm' && !this.loadedOnce;
     this.activeRequests += 1;
     try {
-      const vectors = await client.request<Float32Array[]>(
+      const vectors = await client.request<ArrayLike<number>[]>(
         'embed',
         { texts },
         this.loadedOnce ? EMBED_TIMEOUT_MS : MODEL_LOAD_TIMEOUT_MS,
@@ -70,7 +70,9 @@ export class LocalEmbeddingService {
           error: undefined,
         });
       }
-      return vectors;
+      return vectors.map((vector) => vector instanceof Float32Array
+        ? vector
+        : Float32Array.from(vector));
     } catch (error) {
       const wasActiveClient = this.client === client;
       if (wasActiveClient) this.client = null;
