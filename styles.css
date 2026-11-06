@@ -13,12 +13,25 @@ div.setting-item.zvec-setting-hidden {
 
 .zvec-search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: var(--size-4-2);
 }
 
 .zvec-search-row input {
   width: 100%;
+}
+
+.zvec-search-row button.zvec-search-history-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--input-height);
+  padding: 0;
+}
+
+.zvec-search-history-button svg {
+  width: var(--icon-s);
+  height: var(--icon-s);
 }
 
 .zvec-search-options {

@@ -2,6 +2,16 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.2.0 — 2026-11-06
+
+### Added
+
+- The search field now has a recent-searches menu containing the 20 most
+  recent successful queries for the vault.
+- Selecting a history item reruns it immediately, while Up and Down move
+  through history from the keyboard and preserve an unfinished draft.
+- Search history can be cleared directly from its menu.
+
 ## 1.1.5 — 2026-11-06
 
 ### Fixed

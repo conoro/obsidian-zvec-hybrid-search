@@ -14,6 +14,7 @@ is no separate server or command-line setup.
 - Lets you index the whole vault or selected top-level folders.
 - Lets you exclude folders that you do not want to search.
 - Sorts results by relevance, date, or title.
+- Keeps a short vault-specific history of successful searches.
 - Keeps note text and the search index on your computer.
 - Stores generated search data outside the vault, avoiding sync conflicts with
   Dropbox, iCloud, OneDrive, and similar services.
@@ -103,6 +104,11 @@ the local index immediately and update only notes that have changed.
 Use **Load more** when there are more results than the current batch. Use
 **Clear**, or press **Escape**, to remove the current query and results.
 Changing a completed query clears its old results immediately.
+Use the history button beside the search field to rerun one of the 20 most
+recent successful searches or clear the history. In the search field, press
+Up and Down to move through recent queries, then press Enter to search.
+History is stored with this vault's plugin settings, so it follows the same
+configuration-sync behaviour as your other plugin settings.
 
 ### Search options
 

@@ -34,6 +34,7 @@ export interface HybridSearchSettings {
   resultLimit: number;
   candidateLimit: number;
   titleBoost: number;
+  searchHistory: string[];
 }
 
 export const DEFAULT_SETTINGS: HybridSearchSettings = {
@@ -55,6 +56,7 @@ export const DEFAULT_SETTINGS: HybridSearchSettings = {
   resultLimit: 20,
   candidateLimit: 500,
   titleBoost: 0.35,
+  searchHistory: [],
 };
 
 export interface Passage {
