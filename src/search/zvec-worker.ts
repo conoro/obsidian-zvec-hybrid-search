@@ -137,6 +137,56 @@ export function zvecWorkerEntrypoint(): void {
     return requireCollection().stats;
   }
 
+  function replaceCollection(
+    zvec: typeof import('@zvec/zvec'),
+  ): void {
+    if (collection) {
+      try {
+        collection.destroySync();
+      } finally {
+        collection = null;
+      }
+      collection = zvec.ZVecCreateAndOpen(
+        workerData.collectionPath,
+        createSchema(zvec),
+      );
+      return;
+    }
+
+    mkdirSync(dirname(workerData.collectionPath), { recursive: true });
+    const existingCollection = existsSync(workerData.collectionPath);
+    const backupPath = existingCollection
+      ? `${workerData.collectionPath}.rebuild-${process.pid}-${Date.now()}`
+      : null;
+    if (backupPath) renameSync(workerData.collectionPath, backupPath);
+    try {
+      collection = zvec.ZVecCreateAndOpen(
+        workerData.collectionPath,
+        createSchema(zvec),
+      );
+      if (backupPath) {
+        void rmAsync(backupPath, { recursive: true, force: true })
+          .catch(() => undefined);
+      }
+    } catch (createError) {
+      rmSync(workerData.collectionPath, { recursive: true, force: true });
+      if (backupPath) {
+        try {
+          renameSync(backupPath, workerData.collectionPath);
+        } catch (restoreError) {
+          throw new Error(
+            `ZVec could not create a clean index, and the old generated index could not be restored: ${errorText(createError)}. ${errorText(restoreError)}`,
+          );
+        }
+      }
+      throw new Error(
+        backupPath
+          ? `ZVec could not create a clean index; the old generated index was restored: ${errorText(createError)}`
+          : `ZVec could not create a clean index: ${errorText(createError)}`,
+      );
+    }
+  }
+
   async function handle(
     method: string,
     args: Record<string, unknown>,
@@ -204,18 +254,7 @@ export function zvecWorkerEntrypoint(): void {
     }
     if (method === 'recreate') {
       const zvec = getApi();
-      if (collection) {
-        try {
-          collection.destroySync();
-        } finally {
-          collection = null;
-        }
-      }
-      mkdirSync(dirname(workerData.collectionPath), { recursive: true });
-      collection = zvec.ZVecCreateAndOpen(
-        workerData.collectionPath,
-        createSchema(zvec),
-      );
+      replaceCollection(zvec);
       return { stats: stats() };
     }
     if (method === 'upsert') {

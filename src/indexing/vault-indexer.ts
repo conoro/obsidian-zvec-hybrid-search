@@ -78,18 +78,24 @@ export class VaultIndexer {
     return this.persistedIndexUsable;
   }
 
-  async initialize(): Promise<void> {
+  async initialize(resetIndex = false): Promise<void> {
     await withTimeout(
       fs.mkdir(dirname(this.statePath), { recursive: true }),
       STATE_IO_TIMEOUT_MS,
       'Creating the ZVec state directory',
     );
-    await this.store.open();
-    this.state = await this.readState();
-    if (this.store.repairedDuringOpen) {
-      // The collection was generated data that ZVec could not reopen. Ignore
-      // its old bookkeeping so startup performs a complete source rebuild.
-      this.state = null;
+    if (resetIndex) {
+      await this.store.recreate();
+      this.state = newIndexState(this.settings());
+      await this.removePersistedState();
+    } else {
+      await this.store.open();
+      this.state = await this.readState();
+      if (this.store.repairedDuringOpen) {
+        // The collection was generated data that ZVec could not reopen. Ignore
+        // its old bookkeeping so startup performs a complete source rebuild.
+        this.state = null;
+      }
     }
     if (this.state && this.state.embeddingDtype === undefined) {
       this.state.embeddingDtype = this.settings().embeddingDtype;
@@ -196,8 +202,13 @@ export class VaultIndexer {
       await this.activeRun;
     }
     await this.store.recreate();
-    this.state = null;
+    this.state = newIndexState(this.settings());
     this.persistedIndexUsable = false;
+    await this.removePersistedState();
+    await this.run(false);
+  }
+
+  private async removePersistedState(): Promise<void> {
     try {
       await withTimeout(
         fs.unlink(this.statePath),
@@ -207,7 +218,6 @@ export class VaultIndexer {
     } catch (error) {
       if (!isMissingFileError(error)) throw error;
     }
-    await this.run(true);
   }
 
   async close(): Promise<void> {

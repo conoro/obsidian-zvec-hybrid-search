@@ -207,9 +207,9 @@ export default class ZVecHybridSearchPlugin
         await this.indexer?.stop();
         this.indexer = null;
         this.engine = null;
-        await this.createRuntime();
+        await this.createRuntime(true);
         const indexer = this.requireIndexer();
-        await indexer.resetAndReindex();
+        await indexer.run(false);
       },
     ).finally(() => {
       this.restartPromise = null;
@@ -278,7 +278,7 @@ export default class ZVecHybridSearchPlugin
     }
   }
 
-  private async createRuntime(): Promise<void> {
+  private async createRuntime(resetIndex = false): Promise<void> {
     this.updateStatus({ ...INITIAL_STATUS });
     const adapter = this.app.vault.adapter;
     if (!(adapter instanceof FileSystemAdapter)) {
@@ -358,9 +358,16 @@ export default class ZVecHybridSearchPlugin
       embeddings,
       () => this.settings,
     );
+    if (resetIndex) {
+      this.updateStatus({
+        phase: 'loading',
+        message: 'Resetting local search index…',
+        background: false,
+      });
+    }
     try {
       await initializeThenPublish(
-        () => indexer.initialize(),
+        () => indexer.initialize(resetIndex),
         () => {
           if (this.isUnloading) {
             throw new PluginRuntimeError(

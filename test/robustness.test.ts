@@ -650,6 +650,50 @@ test('an existing invalid generated collection is repaired after an open failure
   }
 });
 
+test('an explicit reset replaces a closed persisted collection directly', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-direct-reset-'));
+  const collection = join(directory, 'collection');
+  const original = new ZVecStore(collection);
+  try {
+    await original.open(true);
+    const searchText = 'persisted passage before reset';
+    await original.upsert([{
+      id: 'Before reset.md#0',
+      path: 'Before reset.md',
+      title: 'Before reset',
+      heading: 'Before reset',
+      content: searchText,
+      searchText,
+      titleText: 'Before reset',
+      preview: searchText,
+      tags: [],
+      folder: '',
+      startLine: 0,
+      chunkIndex: 0,
+      mtime: 1,
+      ctime: 1,
+    }], [hashEmbedding(searchText)]);
+    assert.equal(original.stats.docCount, 1);
+    await original.close();
+
+    const replacement = new ZVecStore(collection);
+    try {
+      await replacement.recreate();
+      assert.equal(replacement.isAvailable, true);
+      assert.equal(replacement.stats.docCount, 0);
+      assert.deepEqual(
+        await replacement.keywordQuery('persisted passage', 'all', 10),
+        [],
+      );
+    } finally {
+      await replacement.close();
+    }
+  } finally {
+    await original.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('a collection locked by another process is never replaced', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-locked-collection-'));
   const collection = join(directory, 'collection');

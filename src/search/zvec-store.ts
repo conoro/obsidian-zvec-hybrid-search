@@ -21,7 +21,10 @@ const OUTPUT_FIELDS = [
   'mtime',
   'ctime',
 ];
-const OPEN_TIMEOUT_MS = 5000;
+// Opening a persisted native index can legitimately take several seconds on
+// slower storage. It runs outside Obsidian, so allow it time to finish while
+// retaining a hard bound for a genuinely stuck native call.
+const OPEN_TIMEOUT_MS = 60_000;
 const QUERY_TIMEOUT_MS = 15_000;
 const WRITE_TIMEOUT_MS = 30_000;
 const OPTIMIZE_TIMEOUT_MS = 120_000;
@@ -95,8 +98,36 @@ export class ZVecStore {
   }
 
   async recreate(): Promise<void> {
-    await this.open(true);
-    await this.perform<void>('recreate', {}, WRITE_TIMEOUT_MS);
+    if (this.stopped) {
+      throw new PluginRuntimeError(
+        'PLUGIN_STOPPED',
+        'ZVec Hybrid Search has been stopped.',
+      );
+    }
+    await this.stopClient();
+    const client = this.createIsolatedWorker();
+    this.client = client;
+    try {
+      const result = await client.request<WorkerResult>(
+        'recreate',
+        {},
+        WRITE_TIMEOUT_MS,
+      );
+      this.updateStats(result.stats);
+      this.recoveredOnOpen = false;
+      this.ready = true;
+      this.retryAfter = 0;
+    } catch (error) {
+      this.ready = false;
+      this.retryAfter = Date.now() + RETRY_COOLDOWN_MS;
+      await client.stop();
+      if (this.client === client) this.client = null;
+      throw new PluginRuntimeError(
+        'RUNTIME_UNAVAILABLE',
+        `ZVec storage could not be reset. Obsidian remains available. ${errorMessage(error)}`,
+        { cause: error, retryable: true },
+      );
+    }
   }
 
   async close(): Promise<void> {
@@ -187,18 +218,7 @@ export class ZVecStore {
 
   private async openIsolatedWorker(): Promise<void> {
     await this.stopClient();
-    const client = new WorkerRpcClient(
-      createZVecWorkerSource(),
-      {
-        collectionPath: this.collectionPath,
-        runtimeDirectory: this.runtimeDirectory,
-        embeddingDimension: EMBEDDING_DIMENSION,
-      },
-      (error) => this.handleWorkerFailure(error),
-      undefined,
-      false,
-      this.nodeExecutable,
-    );
+    const client = this.createIsolatedWorker();
     this.client = client;
     try {
       const result = await client.request<WorkerResult>(
@@ -221,6 +241,21 @@ export class ZVecStore {
         { cause: error, retryable: true },
       );
     }
+  }
+
+  private createIsolatedWorker(): WorkerRpcClient {
+    return new WorkerRpcClient(
+      createZVecWorkerSource(),
+      {
+        collectionPath: this.collectionPath,
+        runtimeDirectory: this.runtimeDirectory,
+        embeddingDimension: EMBEDDING_DIMENSION,
+      },
+      (error) => this.handleWorkerFailure(error),
+      undefined,
+      false,
+      this.nodeExecutable,
+    );
   }
 
   private async perform<T>(
