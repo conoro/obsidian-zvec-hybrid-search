@@ -3,6 +3,7 @@ import {
   ROOT_FOLDER,
   type HybridSearchSettings,
 } from './types';
+import { normalizeSearchHistory } from './search/history';
 
 const SEARCH_MODES = new Set(['hybrid', 'keyword', 'semantic']);
 const MATCH_MODES = new Set(['all', 'any', 'phrase']);
@@ -131,6 +132,7 @@ export function normalizeSettings(raw: unknown): HybridSearchSettings {
       1,
       DEFAULT_SETTINGS.titleBoost,
     ),
+    searchHistory: normalizeSearchHistory(saved.searchHistory),
   };
 }
 

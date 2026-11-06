@@ -1,7 +1,9 @@
 import {
   ItemView,
   MarkdownView,
+  Menu,
   Notice,
+  setIcon,
   TFile,
   ToggleComponent,
   type WorkspaceLeaf,
@@ -18,6 +20,12 @@ import type {
   SortOrder,
 } from '../types';
 import { modifiedDateRangeFromInputs } from '../search/date-range';
+import {
+  addSearchHistoryEntry,
+  MAX_SEARCH_QUERY_LENGTH,
+  SearchHistoryCursor,
+  searchHistoryMenuTitle,
+} from '../search/history';
 import { queryTerms } from '../search/text';
 import { resultActivationFor } from './result-activation';
 import { ResultPager } from './result-pager';
@@ -47,6 +55,7 @@ export class HybridSearchView extends ItemView {
   private activeResponse: SearchResponse | null = null;
   private lastErrorText: string | null = null;
   private readonly searchSession = new SearchSession();
+  private readonly searchHistoryCursor = new SearchHistoryCursor();
   private readonly resultPager = new ResultPager<SearchResult>();
 
   constructor(
@@ -164,6 +173,19 @@ export class HybridSearchView extends ItemView {
         spellcheck: 'false',
       },
     });
+    const historyButton = searchRow.createEl('button', {
+      cls: 'zvec-search-history-button',
+      attr: {
+        type: 'button',
+        'aria-label': 'Recent searches',
+        title: 'Recent searches',
+      },
+    });
+    setIcon(historyButton, 'history');
+    historyButton.addEventListener(
+      'click',
+      (event) => this.showSearchHistory(event),
+    );
     this.searchButtonEl = searchRow.createEl('button', {
       text: 'Search',
       cls: 'mod-cta',
@@ -177,6 +199,7 @@ export class HybridSearchView extends ItemView {
     this.clearButtonEl.disabled = true;
     this.clearButtonEl.addEventListener('click', () => this.clearSearch());
     this.queryInput.addEventListener('input', () => {
+      this.searchHistoryCursor.reset();
       if (
         this.searchSession.invalidateIfInputChanged(
           this.queryInput?.value ?? '',
@@ -191,6 +214,24 @@ export class HybridSearchView extends ItemView {
       if (event.key === 'Escape') {
         event.preventDefault();
         this.clearSearch();
+      }
+      if (
+        !event.isComposing
+        && !event.altKey
+        && !event.ctrlKey
+        && !event.metaKey
+        && !event.shiftKey
+        && (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+      ) {
+        const moved = this.searchHistoryCursor.move(
+          this.plugin.settings.searchHistory,
+          this.queryInput?.value ?? '',
+          event.key === 'ArrowUp' ? 'older' : 'newer',
+        );
+        if (moved !== null) {
+          event.preventDefault();
+          this.setQueryValue(moved);
+        }
       }
     });
 
@@ -379,7 +420,8 @@ export class HybridSearchView extends ItemView {
   }
 
   private async runSearch(): Promise<void> {
-    const query = (this.queryInput?.value.trim() ?? '').slice(0, 1000);
+    const query = (this.queryInput?.value.trim() ?? '')
+      .slice(0, MAX_SEARCH_QUERY_LENGTH);
     if (!query || !this.resultsEl || !this.summaryEl) {
       this.clearSearch();
       return;
@@ -413,6 +455,7 @@ export class HybridSearchView extends ItemView {
         ...dateRange,
       });
       if (!this.searchSession.isCurrent(generation, query)) return;
+      this.recordSearchHistory(query);
       this.renderResults(query, response);
     } catch (error) {
       if (!this.searchSession.isCurrent(generation, query)) return;
@@ -434,10 +477,67 @@ export class HybridSearchView extends ItemView {
 
   private clearSearch(): void {
     this.searchSession.clear();
+    this.searchHistoryCursor.reset();
     if (this.queryInput) this.queryInput.value = '';
     this.clearRenderedSearch();
     this.syncClearButton();
     this.queryInput?.focus();
+  }
+
+  private showSearchHistory(event: MouseEvent): void {
+    const menu = new Menu();
+    const history = this.plugin.settings.searchHistory;
+    if (history.length === 0) {
+      menu.addItem((item) => item
+        .setTitle('No recent searches')
+        .setIcon('history')
+        .setDisabled(true));
+    } else {
+      for (const query of history) {
+        menu.addItem((item) => item
+          .setTitle(searchHistoryMenuTitle(query))
+          .setIcon('search')
+          .onClick(() => {
+            this.setQueryValue(query);
+            this.searchHistoryCursor.reset();
+            void this.runSearch();
+          }));
+      }
+      menu.addSeparator();
+      menu.addItem((item) => item
+        .setTitle('Clear search history')
+        .setIcon('trash-2')
+        .onClick(() => this.clearSearchHistory()));
+    }
+    menu.showAtMouseEvent(event);
+  }
+
+  private setQueryValue(value: string): void {
+    if (!this.queryInput) return;
+    this.queryInput.value = value;
+    if (this.searchSession.invalidateIfInputChanged(value)) {
+      this.clearRenderedSearch();
+    }
+    this.syncClearButton();
+    this.queryInput.focus();
+    this.queryInput.setSelectionRange(value.length, value.length);
+  }
+
+  private recordSearchHistory(query: string): void {
+    const history = addSearchHistoryEntry(
+      this.plugin.settings.searchHistory,
+      query,
+    );
+    if (sameQueries(history, this.plugin.settings.searchHistory)) return;
+    this.plugin.settings.searchHistory = history;
+    void this.plugin.saveSettings();
+  }
+
+  private clearSearchHistory(): void {
+    this.plugin.settings.searchHistory = [];
+    this.searchHistoryCursor.reset();
+    void this.plugin.saveSettings();
+    new Notice('Search history cleared.', 2500);
   }
 
   private clearRenderedSearch(): void {
@@ -579,6 +679,11 @@ export class HybridSearchView extends ItemView {
       }, true);
     }
   }
+}
+
+function sameQueries(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length
+    && left.every((query, index) => query === right[index]);
 }
 
 function appendHighlighted(
