@@ -29,6 +29,13 @@ const QUERY_TIMEOUT_MS = 15_000;
 const WRITE_TIMEOUT_MS = 30_000;
 const OPTIMIZE_TIMEOUT_MS = 120_000;
 const RETRY_COOLDOWN_MS = 15_000;
+const LOCK_RETRY_WINDOW_MS = 8000;
+const LOCK_RETRY_INTERVAL_MS = 400;
+
+interface ZVecStoreOptions {
+  lockRetryWindowMs?: number;
+  lockRetryIntervalMs?: number;
+}
 
 interface WorkerResult<T = undefined> {
   value?: T;
@@ -59,6 +66,7 @@ export class ZVecStore {
     private readonly collectionPath: string,
     private readonly runtimeDirectory = process.cwd(),
     private readonly nodeExecutable?: string,
+    private readonly options: ZVecStoreOptions = {},
   ) {}
 
   get stats(): ZVecStats {
@@ -217,30 +225,49 @@ export class ZVecStore {
   }
 
   private async openIsolatedWorker(): Promise<void> {
+    const retryDeadline = Date.now()
+      + (this.options.lockRetryWindowMs ?? LOCK_RETRY_WINDOW_MS);
+    const retryInterval = this.options.lockRetryIntervalMs
+      ?? LOCK_RETRY_INTERVAL_MS;
     await this.stopClient();
-    const client = this.createIsolatedWorker();
-    this.client = client;
-    try {
-      const result = await client.request<WorkerResult>(
-        'open',
-        {},
-        OPEN_TIMEOUT_MS,
-      );
-      this.updateStats(result.stats);
-      this.recoveredOnOpen = result.recovered === true;
-      this.ready = true;
-      this.retryAfter = 0;
-    } catch (error) {
-      this.ready = false;
-      this.retryAfter = Date.now() + RETRY_COOLDOWN_MS;
-      await client.stop();
-      if (this.client === client) this.client = null;
-      throw new PluginRuntimeError(
-        'RUNTIME_UNAVAILABLE',
-        `ZVec storage could not be opened. Obsidian remains available. ${errorMessage(error)}`,
-        { cause: error, retryable: true },
-      );
+    while (!this.stopped) {
+      const client = this.createIsolatedWorker();
+      this.client = client;
+      try {
+        const result = await client.request<WorkerResult>(
+          'open',
+          {},
+          OPEN_TIMEOUT_MS,
+        );
+        this.updateStats(result.stats);
+        this.recoveredOnOpen = result.recovered === true;
+        this.ready = true;
+        this.retryAfter = 0;
+        return;
+      } catch (error) {
+        this.ready = false;
+        await client.stop();
+        if (this.client === client) this.client = null;
+        if (
+          isCollectionLockError(error)
+          && Date.now() < retryDeadline
+          && !this.stopped
+        ) {
+          await waitForRetry(retryInterval);
+          continue;
+        }
+        this.retryAfter = Date.now() + RETRY_COOLDOWN_MS;
+        throw new PluginRuntimeError(
+          'RUNTIME_UNAVAILABLE',
+          `ZVec storage could not be opened. Obsidian remains available. ${errorMessage(error)}`,
+          { cause: error, retryable: true },
+        );
+      }
     }
+    throw new PluginRuntimeError(
+      'PLUGIN_STOPPED',
+      'ZVec Hybrid Search was stopped while waiting for storage.',
+    );
   }
 
   private createIsolatedWorker(): WorkerRpcClient {
@@ -324,4 +351,16 @@ function isFatalWorkerError(error: unknown): boolean {
       || error.code === 'WORKER_ERROR'
       || error.code === 'PLUGIN_STOPPED'
     );
+}
+
+function isCollectionLockError(error: unknown): boolean {
+  return errorMessage(error)
+    .toLowerCase()
+    .includes('can\'t lock read-write collection');
+}
+
+async function waitForRetry(delayMs: number): Promise<void> {
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, Math.max(0, delayMs));
+  });
 }

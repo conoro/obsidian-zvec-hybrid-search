@@ -2,6 +2,14 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.2.1 — 2026-11-06
+
+### Fixed
+
+- Plugin updates now wait briefly for the previous isolated process to release
+  the local ZVec collection instead of immediately reporting a storage-lock
+  error. Collections held by another live process are still left untouched.
+
 ## 1.2.0 — 2026-11-06
 
 ### Added

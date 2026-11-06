@@ -698,7 +698,12 @@ test('a collection locked by another process is never replaced', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'zvec-locked-collection-'));
   const collection = join(directory, 'collection');
   const owner = new ZVecStore(collection);
-  const contender = new ZVecStore(collection);
+  const contender = new ZVecStore(
+    collection,
+    process.cwd(),
+    undefined,
+    { lockRetryWindowMs: 100, lockRetryIntervalMs: 25 },
+  );
   try {
     await owner.open(true);
     await assert.rejects(
@@ -712,6 +717,40 @@ test('a collection locked by another process is never replaced', async () => {
     assert.equal(contender.repairedDuringOpen, false);
   } finally {
     await contender.close();
+    await owner.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('a collection opens after a previous plugin process releases its lock', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zvec-transient-lock-'));
+  const collection = join(directory, 'collection');
+  const owner = new ZVecStore(collection);
+  const replacement = new ZVecStore(
+    collection,
+    process.cwd(),
+    undefined,
+    { lockRetryWindowMs: 2000, lockRetryIntervalMs: 50 },
+  );
+  let releaseError: unknown;
+  try {
+    await owner.open(true);
+    const release = new Promise<void>((resolve) => {
+      window.setTimeout(() => {
+        void owner.close()
+          .catch((error: unknown) => {
+            releaseError = error;
+          })
+          .finally(resolve);
+      }, 150);
+    });
+    await replacement.open(true);
+    await release;
+    assert.equal(releaseError, undefined);
+    assert.equal(replacement.isAvailable, true);
+    assert.equal(replacement.repairedDuringOpen, false);
+  } finally {
+    await replacement.close();
     await owner.close();
     await rm(directory, { recursive: true, force: true });
   }
