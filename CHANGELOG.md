@@ -2,6 +2,17 @@
 
 All notable changes to ZVec Hybrid Search for Obsidian are documented here.
 
+## 1.1.5 — 2026-11-06
+
+### Fixed
+
+- Opening a valid persisted index now has a realistic isolated-process timeout,
+  preventing larger indexes from being incorrectly stopped after five seconds.
+- **Save and rebuild** and **Reset and rebuild** now replace the generated
+  collection directly instead of loading the entire old index first.
+- Index replacement is atomic: if the clean collection cannot be created, the
+  previous generated collection is restored.
+
 ## 1.1.4 — 2026-11-04
 
 ### Fixed
